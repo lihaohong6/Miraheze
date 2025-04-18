@@ -2,3 +2,6 @@
 /.idea
 *.pickle
 __pycache__/
+/apicache
+/cache
+*.ctrl
