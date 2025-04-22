@@ -1,10 +1,9 @@
-family_files['miraheze'] = 'https://vocaloidlyrics.miraheze.org/w/api.php'
-family_files['original'] = 'https://vocaloidlyrics.fandom.com/api.php'
+family_files['meta'] = 'https://meta.miraheze.org/w/api.php'
 
-family = 'miraheze'
-mylang = 'miraheze'
+family = 'meta'
+mylang = 'meta'
 
-usernames['miraheze']['miraheze'] = 'PetraMagna'
+usernames['meta']['meta'] = 'PetraMagna'
 password_file = "user-passwords.py"
 
 user_agent_format = "Test bot by User:PetraMagna"
