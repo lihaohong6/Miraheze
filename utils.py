@@ -8,7 +8,7 @@ from pywikibot.data.api import ListGenerator, Request
 headers = {'User-Agent': 'MediaWiki bot by User:PetraMagna', }
 
 cache_dir = Path('cache')
-
+cache_dir.mkdir(parents=True, exist_ok=True)
 
 def meta():
     return Site(code="meta")

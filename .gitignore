@@ -5,3 +5,7 @@ __pycache__/
 /apicache
 /cache
 *.ctrl
+pywikibot*.lwp
+*.txt
+user-passwords.py
+/logs
