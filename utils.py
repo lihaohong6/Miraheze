@@ -2,6 +2,7 @@ import pickle
 from dataclasses import dataclass
 from pathlib import Path
 
+import requests
 from pywikibot import Site
 from pywikibot.data.api import ListGenerator, Request
 
@@ -59,3 +60,15 @@ def fetch_all_mh_wikis(state: str = "active|public") -> list[MirahezeWiki]:
     else:
         results = pickle.load(open(wiki_cache_file, "rb"))
     return results
+
+
+def get_num_of_recent_changes(wiki: MirahezeWiki) -> int:
+    result = requests.get(wiki.api_url, {
+        'action': 'query',
+        'list': 'recentchanges',
+        'rcnamespace': '*',
+        'rcprop': 'user',
+        'rclimit': 100,
+        'format': 'json'
+    }, headers=headers).json()['batchcomplete']['query']['recentchanges']
+    return len(result)
