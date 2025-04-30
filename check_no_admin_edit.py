@@ -89,13 +89,6 @@ def save_admin_stats(p: Path, stats: list[AdminStats]) -> None:
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
-def main():
-    cache_file = cache_dir / "no_admin_edit.pickle"
-    admin_stats = load_admin_stats(cache_file)
-    fetch_admin_stats(admin_stats, cache_file)
-    print_problematic_wikis(admin_stats)
-
-
 def print_problematic_wikis(admin_stats):
     now = datetime.now()
     for stats in admin_stats:
@@ -103,15 +96,24 @@ def print_problematic_wikis(admin_stats):
             continue
         last_edits = [admin.last_edit.replace(tzinfo=None) for admin in stats.admins]
         if len(last_edits) == 0:
-            print(f"{stats.wiki} does not appear to have an admin")
+            # print(f"{stats.wiki} does not appear to have an admin")
             continue
         last_edit = max(last_edits)
         delta = now - last_edit
         if delta > timedelta(days=10000):
-            print(f"{stats.wiki}'s admins have not made a single edit. Is this a new wiki?")
+            # print(f"{stats.wiki}'s admins have not made a single edit. Is this a new wiki?")
             continue
-        if delta > timedelta(days=180):
-            print(f"{stats.wiki} is last edited by an admin {delta.days} days ago.")
+        if delta > timedelta(days=1000):
+            wiki = stats.wiki
+            row = (
+                "{{/entry"
+                f"|name={wiki.sitename}"
+                f"|link={wiki.url}"
+                f"|text={delta.days} days"
+                "|status={{status}} "
+                "}}"
+            ).replace("|", " | ")
+            print(row)
 
 
 def fetch_admin_stats(admin_stats: list[AdminStats], cache_file: Path) -> None:
@@ -123,6 +125,13 @@ def fetch_admin_stats(admin_stats: list[AdminStats], cache_file: Path) -> None:
         if index % 10 == 0:
             print(f"{index}/{len(admin_stats)}")
             save_admin_stats(cache_file, admin_stats)
+
+
+def main():
+    cache_file = cache_dir / "no_admin_edit.pickle"
+    admin_stats = load_admin_stats(cache_file)
+    fetch_admin_stats(admin_stats, cache_file)
+    print_problematic_wikis(admin_stats)
 
 
 if __name__ == "__main__":
