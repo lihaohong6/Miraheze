@@ -11,7 +11,7 @@ from typing import Any
 import requests
 from pywikibot import Site
 
-from utils import MirahezeWiki, fetch_all_mh_wikis, cache_dir, headers
+from utils import MirahezeWiki, fetch_all_mh_wikis, cache_dir, headers, get_num_of_recent_changes
 
 
 @dataclass
@@ -31,6 +31,7 @@ class WikiStatus(Enum):
 class AdminStats:
     wiki: MirahezeWiki
     admins: list[WikiAdmin] = dataclasses.field(default_factory=list)
+    time_delta: timedelta = timedelta(seconds=0)
     status: WikiStatus = WikiStatus.PENDING
 
 
@@ -89,8 +90,9 @@ def save_admin_stats(p: Path, stats: list[AdminStats]) -> None:
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 
-def print_problematic_wikis(admin_stats):
+def print_problematic_wikis(admin_stats: list[AdminStats]) -> list[AdminStats]:
     now = datetime.now()
+    result: list[AdminStats] = []
     for stats in admin_stats:
         if stats.status != WikiStatus.DONE:
             continue
@@ -100,6 +102,7 @@ def print_problematic_wikis(admin_stats):
             continue
         last_edit = max(last_edits)
         delta = now - last_edit
+        stats.time_delta = delta
         if delta > timedelta(days=10000):
             # print(f"{stats.wiki}'s admins have not made a single edit. Is this a new wiki?")
             continue
@@ -114,6 +117,8 @@ def print_problematic_wikis(admin_stats):
                 "}}"
             ).replace("|", " | ")
             print(row)
+            result.append(stats)
+    return result
 
 
 def fetch_admin_stats(admin_stats: list[AdminStats], cache_file: Path) -> None:
@@ -131,7 +136,11 @@ def main():
     cache_file = cache_dir / "no_admin_edit.pickle"
     admin_stats = load_admin_stats(cache_file)
     fetch_admin_stats(admin_stats, cache_file)
-    print_problematic_wikis(admin_stats)
+    wikis = print_problematic_wikis(admin_stats)
+    for stats in wikis:
+        wiki = stats.wiki
+        rc = get_num_of_recent_changes(wiki)
+        print(f"{wiki} has {rc} recent changes")
 
 
 if __name__ == "__main__":

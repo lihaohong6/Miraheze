@@ -70,5 +70,5 @@ def get_num_of_recent_changes(wiki: MirahezeWiki) -> int:
         'rcprop': 'user',
         'rclimit': 100,
         'format': 'json'
-    }, headers=headers).json()['batchcomplete']['query']['recentchanges']
+    }, headers=headers).json()['query']['recentchanges']
     return len(result)
