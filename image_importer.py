@@ -1,5 +1,6 @@
 import logging
 import pickle
+import subprocess
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
@@ -98,15 +99,30 @@ def upload_files(files: list[str], original_wiki: Site, new_wiki: Site) -> None:
             logger.error(f"Failed to upload {file_title}.")
 
 
-def upload_local_files(new_wiki: Site):
-    files = [f for f in local_files_directory.iterdir() if f.is_file()]
+def upload_local_files(new_wiki: Site, comment: str = "batch file upload"):
+    existing_files = get_miraheze_wiki_files(new_wiki)
+    files = [f for f in local_files_directory.iterdir() if f.is_file() and "File:" + f.name.replace(" ", "_") not in existing_files]
     for f in files:
         file_title = f"File:{f.name}"
-        try:
-            new_page = FilePage(new_wiki, file_title)
-            new_page.upload(str(f.absolute()), comment=f"Uploaded as a part of T13584", ignore_warnings=False)
-        except Exception as e:
-            logger.error(f"Failed to upload {file_title}: {e}")
+        mime_retry = True
+        while True:
+            try:
+                new_page = FilePage(new_wiki, file_title)
+                new_page.upload(str(f.absolute()), comment=comment, text="", ignore_warnings=False)
+            except Exception as e:
+                if "MIME" in str(e) and mime_retry:
+                    logger.warning(f"Mime type mismatch for {file_title}, converting to perform a try")
+                    temp_file = cache_dir / f"temp{f.suffix}"
+                    temp_file.unlink(missing_ok=True)
+                    p = subprocess.run(["magick", f, temp_file],
+                                       stdout=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL)
+                    if p.returncode == 0:
+                        f = temp_file
+                        mime_retry = False
+                        continue
+                logger.error(f"Failed to upload {file_title}: {e}")
+            break
 
 
 def main():
@@ -118,6 +134,7 @@ def main():
                              "the original wiki, which helps reduce requests made to the original wiki.")
     parser.add_argument("-l", "--local", action="store_true",
                         help="Only import images that exist locally.")
+    parser.add_argument("-s", "--summary", type=str, default="batch file upload")
 
     args = parser.parse_args()
     if args.new is not None:
@@ -132,7 +149,8 @@ def main():
     local_only = args.local
     if local_only:
         assert local_files_directory is not None
-        upload_local_files(new_wiki)
+        print("Uploading local files only")
+        upload_local_files(new_wiki, comment=args.summary)
         return
     if args.original:
         original_wiki = Site(url=args.original)
