@@ -5,11 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-import requests
-from bs4 import BeautifulSoup, PageElement, Tag
-from requests import Session
-
-from utils import cache_dir, get_logger
+from utils import cache_dir, get_logger, SessionInfo, get_csrf_token, login, headers
 
 LENGTH_LIMIT = 2 * 1000 * 1000
 
@@ -17,16 +13,6 @@ xml_cache_dir = cache_dir / "xml"
 xml_cache_dir.mkdir(parents=True, exist_ok=True)
 
 logger = get_logger("import_sharder")
-
-
-def make_new_soup(old_root: BeautifulSoup, siteinfo: PageElement, pages: list[Tag] = []) -> tuple[BeautifulSoup, Tag]:
-    new_soup = BeautifulSoup(features="lxml-xml")
-    new_root = new_soup.new_tag("mediawiki", attrs=old_root.attrs)
-    new_soup.append(new_root)
-    new_root.append(siteinfo)
-    for p in pages:
-        new_root.append(p)
-    return new_soup, new_root
 
 
 def str_size(string: str | list[str]) -> int:
@@ -188,48 +174,6 @@ def shard_file(original_file: Path) -> list[Path]:
     return files
 
 
-@dataclass
-class SessionInfo:
-    url: str
-    session: Session
-
-
-def get_csrf_token(session: Session, url: str) -> str:
-    params = {
-        "action": "query",
-        "meta": "tokens",
-        "format": "json"
-    }
-    r = session.get(url, params=params)
-    return r.json()["query"]["tokens"]["csrftoken"]
-
-
-def get_session_and_token(url: str, username: str, password: str) -> SessionInfo:
-    # 1. Start a session
-    session = requests.Session()
-
-    # 2. Get login token
-    params = {
-        "action": "query",
-        "meta": "tokens",
-        "type": "login",
-        "format": "json"
-    }
-    r = session.get(url, params=params)
-    login_token = r.json()["query"]["tokens"]["logintoken"]
-
-    # 3. Log in
-    login_params = {
-        "action": "login",
-        "lgname": username,
-        "lgpassword": password,
-        "lgtoken": login_token,
-        "format": "json"
-    }
-    r = session.post(url, data=login_params)
-    return SessionInfo(url, session)
-
-
 def import_xml(file: Path, prefix: str, summary: str, session_info: SessionInfo) -> bool:
 
     with open(file, "rb") as f:
@@ -243,7 +187,7 @@ def import_xml(file: Path, prefix: str, summary: str, session_info: SessionInfo)
             "interwikiprefix": prefix,  # optional
             "summary": summary,  # optional
         }
-        response = session_info.session.post(session_info.url, data=data, files=files)
+        response = session_info.session.post(session_info.url, data=data, files=files, headers=headers)
 
     if response.status_code != 200:
         logger.error(f"Failed to import {file.name}: {response}")
@@ -293,7 +237,7 @@ def main():
     def import_xml_wrapper():
         files = list(xml_cache_dir.glob("*.xml"))
         logger.info(f"Found {len(files)} xml files in the cache")
-        session = get_session_and_token(args.url, args.username, args.password)
+        session = login(args.url, args.username, args.password)
         for file in files:
             logger.info(f"Processing {file.name}")
             result = import_xml(file, args.prefix, args.summary, session)

@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 from pywikibot import Site
 from pywikibot.data.api import ListGenerator, Request
+from requests import Session
 
 headers = {'User-Agent': 'MediaWiki bot by User:PetraMagna', }
 
@@ -88,3 +89,45 @@ def get_logger(name: str = "logger") -> logging.Logger:
     logger = logging.getLogger(name)
     logger.addHandler(handler)
     return logger
+
+
+@dataclass
+class SessionInfo:
+    url: str
+    session: Session
+
+
+def get_csrf_token(session: Session, url: str) -> str:
+    params = {
+        "action": "query",
+        "meta": "tokens",
+        "format": "json"
+    }
+    r = session.get(url, params=params, headers=headers)
+    return r.json()["query"]["tokens"]["csrftoken"]
+
+
+def login(url: str, username: str, password: str) -> SessionInfo:
+    # 1. Start a session
+    session = requests.Session()
+
+    # 2. Get login token
+    params = {
+        "action": "query",
+        "meta": "tokens",
+        "type": "login",
+        "format": "json"
+    }
+    r = session.get(url, params=params, headers=headers)
+    login_token = r.json()["query"]["tokens"]["logintoken"]
+
+    # 3. Log in
+    login_params = {
+        "action": "login",
+        "lgname": username,
+        "lgpassword": password,
+        "lgtoken": login_token,
+        "format": "json"
+    }
+    r = session.post(url, data=login_params, headers=headers)
+    return SessionInfo(url, session)
