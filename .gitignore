@@ -1,5 +1,5 @@
 /.venv
-/.idea
+.idea/
 *.pickle
 __pycache__/
 /apicache
@@ -9,3 +9,4 @@ pywikibot*.lwp
 *.txt
 user-passwords.py
 /logs
+sandbox.py

@@ -1,27 +1,16 @@
-import logging
 import pickle
 import subprocess
-import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
 from pywikibot import Site, FilePage
 from pywikibot.pagegenerators import GeneratorFactory, PreloadingGenerator
 
-from utils import cache_dir
+from utils import cache_dir, get_logger
 
 local_files_directory: Path | None = None
 
-logging.basicConfig(level=logging.INFO,
-                    filename="importer_log.txt",
-                    filemode="a",
-                    encoding="utf-8")
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger = logging.getLogger("importer")
-logger.addHandler(handler)
+logger = get_logger("importer")
 
 def get_files_on_wiki(site: Site) -> set[str]:
     gen = GeneratorFactory(site)

@@ -1,4 +1,6 @@
+import logging
 import pickle
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -72,3 +74,17 @@ def get_num_of_recent_changes(wiki: MirahezeWiki) -> int:
         'format': 'json'
     }, headers=headers).json()['query']['recentchanges']
     return len(result)
+
+
+def get_logger(name: str = "logger") -> logging.Logger:
+    logging.basicConfig(level=logging.INFO,
+                        filename=f"{name}_log.txt",
+                        filemode="a",
+                        encoding="utf-8")
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger = logging.getLogger(name)
+    logger.addHandler(handler)
+    return logger
