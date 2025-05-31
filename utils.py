@@ -1,3 +1,6 @@
+import dataclasses
+import enum
+import json
 import logging
 import pickle
 import sys
@@ -5,8 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import requests
-from pywikibot import Site
-from pywikibot.data.api import ListGenerator, Request
+from pywikibot import Site, Page
+from pywikibot.data.api import Request
 from requests import Session
 
 headers = {'User-Agent': 'MediaWiki bot by User:PetraMagna', }
@@ -131,3 +134,34 @@ def login(url: str, username: str, password: str) -> SessionInfo:
     }
     r = session.post(url, data=login_params, headers=headers)
     return SessionInfo(url, session)
+
+
+def site() -> Site:
+    return Site()
+
+def dump_json(o):
+    class EnhancedJSONEncoder(json.JSONEncoder):
+        def default(self, o):
+            if dataclasses.is_dataclass(o):
+                return dataclasses.asdict(o)
+            if isinstance(o, enum.Enum):
+                return o.value
+            return super().default(o)
+    return json.dumps(o, indent=4, cls=EnhancedJSONEncoder)
+
+
+def save_json_page(page: Page | str, obj, summary: str = "update json page"):
+
+    if isinstance(page, str):
+        page = Page(site(), page)
+
+    if page.text != "":
+        original_json = json.loads(page.text)
+        original = dump_json(original_json)
+    else:
+        original = ""
+    modified = dump_json(obj)
+    if original != modified:
+        page.text = modified
+        page.save(summary=summary)
+
