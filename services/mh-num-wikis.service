@@ -1,0 +1,12 @@
+[Unit]
+Description=Update the number of wikis on Miraheze
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/uv run wiki_count_tracking.py
+WorkingDirectory=/home/peter/Documents/jobs/Miraheze
+
+[Install]
+WantedBy=multi-user.target
