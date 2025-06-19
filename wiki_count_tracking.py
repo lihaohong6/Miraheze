@@ -67,25 +67,6 @@ def import_from_wayback_dump():
         result[date_string] = num
     print(json.dumps(result, indent=4))
 
-def plot():
-    import matplotlib.pyplot as plt
-    page = Page(site(), "User:PetraMagnaBot/number_of_wikis.json")
-    data = json.loads(page.text)
-    dates = sorted(data.keys(), key=lambda x: datetime.strptime(x, "%Y-%m-%d"))
-    values = [data[date] for date in dates]
-    dates = [datetime.strptime(date, "%Y-%m-%d") for date in dates]
-
-    # Plot
-    plt.figure(figsize=(10, 5))
-    plt.plot(dates, values, marker='o')
-    plt.title("Number of wikis over time")
-    plt.xlabel("Date")
-    plt.ylabel("Number of wikis")
-    plt.ylim(bottom=0)
-    plt.grid(True)
-    plt.show()
-
 if __name__ == "__main__":
     # import_from_wayback_dump()
     main()
-    # plot()

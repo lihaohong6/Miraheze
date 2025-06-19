@@ -10,3 +10,4 @@ pywikibot*.lwp
 user-passwords.py
 /logs
 sandbox.py
+/databases
