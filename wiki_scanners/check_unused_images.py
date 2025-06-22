@@ -7,7 +7,8 @@ from time import sleep
 
 import requests
 
-from utils.general_utils import headers, MirahezeWiki, fetch_all_mh_wikis
+from utils.general_utils import headers, MirahezeWiki
+from utils.wiki_scanner import fetch_all_mh_wikis
 
 cache_path = Path("cache.pickle")
 

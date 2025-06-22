@@ -10,7 +10,8 @@ from typing import Any
 
 import requests
 
-from utils.general_utils import MirahezeWiki, fetch_all_mh_wikis, cache_dir, headers, get_num_of_recent_changes
+from utils.general_utils import MirahezeWiki, cache_dir, headers, get_num_of_recent_changes
+from utils.wiki_scanner import fetch_all_mh_wikis
 
 
 @dataclass
