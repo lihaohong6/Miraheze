@@ -5,7 +5,7 @@ from pathlib import Path
 
 from pywikibot import Page
 
-from utils import site
+from utils.general_utils import site
 
 @cache
 def get_json_data():

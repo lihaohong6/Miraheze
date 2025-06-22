@@ -1,29 +1,18 @@
 import re
-import sqlite3
 from datetime import datetime, timedelta
-from pathlib import Path
 from time import sleep
 
 import requests
 from bs4 import BeautifulSoup
 
-from utils import headers, save_json_page
+from utils.general_utils import headers, save_json_page
+from utils.db_utils import get_conn, db_dir
 
-db_name = Path("databases/wiki_request.sqlite")
-db_name.parent.mkdir(parents=True, exist_ok=True)
-
-def make_conn() -> sqlite3.Connection:
-    return sqlite3.connect(db_name)
-
-
-def get_conn() -> sqlite3.Connection:
-    if not hasattr(get_conn, "conn"):
-        get_conn.conn = make_conn()
-    return get_conn.conn
+db_name = db_dir / "wiki_request.sqlite"
 
 
 def create_tables():
-    conn = get_conn()
+    conn = get_conn(db_name)
     cursor = conn.cursor()
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS requests (
@@ -75,7 +64,7 @@ def get_wikis(offset: str):
 
 
 def get_progress() -> str:
-    conn = get_conn()
+    conn = get_conn(db_name)
     cursor = conn.cursor()
     cursor.execute(f"""
     select query_offset from progress;
@@ -87,7 +76,7 @@ def get_progress() -> str:
     return rows[0][0]
 
 def save_progress(wikis: list[tuple[datetime, str]], offset: str | None):
-    conn = get_conn()
+    conn = get_conn(db_name)
     cursor = conn.cursor()
     for wiki in wikis:
         timestamp, site_name = wiki
@@ -112,7 +101,7 @@ def fetch_wiki_requests():
         sleep(1)
 
 def collect_data():
-    conn = get_conn()
+    conn = get_conn(db_name)
     cursor = conn.cursor()
     cursor.execute(f"""
     select request_date, count(*)  as c from requests group by request_date order by request_date asc;
@@ -133,7 +122,6 @@ def collect_data():
         date, count = row
         result[date] = count
     return result
-
 
 def main():
     create_tables()

@@ -5,6 +5,7 @@ import logging
 import pickle
 import sys
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 import requests
@@ -14,8 +15,9 @@ from requests import Session
 
 headers = {'User-Agent': 'MediaWiki bot by User:PetraMagna', }
 
-cache_dir = Path('cache')
+cache_dir = Path('../cache')
 cache_dir.mkdir(parents=True, exist_ok=True)
+
 
 def meta():
     return Site(code="meta")
@@ -23,48 +25,45 @@ def meta():
 
 @dataclass
 class MirahezeWiki:
-    dbname: str
-    sitename: str
+    db_name: str
+    site_name: str
     url: str
 
     @property
     def api_url(self):
         return self.url + "/w/api.php"
 
+    def to_sql_values(self) -> tuple[str, str, str]:
+        return self.db_name, self.site_name, self.url
+
+    @classmethod
+    def from_sql_row(cls, row: tuple[str, str, str]) -> 'MirahezeWiki':
+        return cls(db_name=row[0], site_name=row[1], url=row[2])
 
     def __str__(self):
-        return f"{self.sitename} ({self.url})"
+        return f"{self.site_name} ({self.url})"
 
 
-def fetch_all_mh_wikis(state: str = "active|public") -> list[MirahezeWiki]:
-    wiki_cache_dir = cache_dir / "wiki_list"
-    wiki_cache_dir.mkdir(parents=True, exist_ok=True)
-    wiki_cache_file = wiki_cache_dir / f"{state.replace('|', '-')}-wiki-list.pickle"
-    if not wiki_cache_file.exists():
-        results: list[MirahezeWiki] = []
-
-        # FIXME: how to use the paginated API?
-        offset = 0
-        while True:
-            req = Request(meta(), parameters={
-                "action": "query",
-                "list": "wikidiscover",
-                "wdprop": "sitename|url",
-                "wdstate": state,
-                "format": "json",
-                "wdoffset": offset
-            })
-            response = req.submit()
-            wikis: dict[str, dict] = response['query']['wikidiscover']['wikis']
-            for db_name, wiki_stats in wikis.items():
-                results.append(MirahezeWiki(dbname=db_name, sitename=wiki_stats["sitename"], url=wiki_stats["url"]))
-            if len(wikis) < 500:
-                break
-            offset += len(wikis)
-
-        pickle.dump(results, open(wiki_cache_file, "wb"))
-    else:
-        results = pickle.load(open(wiki_cache_file, "rb"))
+@cache
+def fetch_all_mh_wikis_uncached(state: str = "active|public") -> list[MirahezeWiki]:
+    results: list[MirahezeWiki] = []
+    offset = 0
+    while True:
+        req = Request(meta(), parameters={
+            "action": "query",
+            "list": "wikidiscover",
+            "wdprop": "sitename|url",
+            "wdstate": state,
+            "format": "json",
+            "wdoffset": offset
+        })
+        response = req.submit()
+        wikis: dict[str, dict] = response['query']['wikidiscover']['wikis']
+        for db_name, wiki_stats in wikis.items():
+            results.append(MirahezeWiki(db_name=db_name, site_name=wiki_stats["sitename"], url=wiki_stats["url"]))
+        if len(wikis) < 500:
+            break
+        offset += len(wikis)
     return results
 
 
@@ -81,7 +80,7 @@ def get_num_of_recent_changes(wiki: MirahezeWiki) -> int:
 
 
 def get_logger(name: str = "logger") -> logging.Logger:
-    log_root = Path("logs")
+    log_root = Path("../logs")
     log_root.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=logging.INFO,
                         filename=log_root / f"{name}_log.txt",
@@ -141,6 +140,7 @@ def login(url: str, username: str, password: str) -> SessionInfo:
 def site() -> Site:
     return Site()
 
+
 def dump_json(o):
     class EnhancedJSONEncoder(json.JSONEncoder):
         def default(self, o):
@@ -149,11 +149,11 @@ def dump_json(o):
             if isinstance(o, enum.Enum):
                 return o.value
             return super().default(o)
+
     return json.dumps(o, indent=4, cls=EnhancedJSONEncoder)
 
 
 def save_json_page(page: Page | str, obj, summary: str = "update json page"):
-
     if isinstance(page, str):
         page = Page(site(), page)
 
@@ -166,4 +166,3 @@ def save_json_page(page: Page | str, obj, summary: str = "update json page"):
     if original != modified:
         page.text = modified
         page.save(summary=summary)
-

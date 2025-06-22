@@ -6,7 +6,7 @@ from enum import Enum
 from json import JSONDecodeError
 from pathlib import Path
 
-from utils import cache_dir, get_logger, SessionInfo, get_csrf_token, login, headers
+from utils.general_utils import cache_dir, get_logger, SessionInfo, get_csrf_token, login, headers
 
 # Use 200MB for Special:RequestImport. Use 2MB for Special:Import.
 # Files absolutely cannot be larger than this.

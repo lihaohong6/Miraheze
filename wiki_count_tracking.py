@@ -6,7 +6,7 @@ from pathlib import Path
 import requests
 from pywikibot import Page
 
-from utils import headers, site, save_json_page
+from utils.general_utils import headers, site, save_json_page
 
 
 def main():

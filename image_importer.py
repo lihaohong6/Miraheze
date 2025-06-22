@@ -6,7 +6,7 @@ from pathlib import Path
 from pywikibot import Site, FilePage
 from pywikibot.pagegenerators import GeneratorFactory, PreloadingGenerator
 
-from utils import cache_dir, get_logger
+from utils.general_utils import cache_dir, get_logger
 
 local_files_directory: Path | None = None
 

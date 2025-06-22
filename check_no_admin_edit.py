@@ -9,9 +9,8 @@ from time import sleep
 from typing import Any
 
 import requests
-from pywikibot import Site
 
-from utils import MirahezeWiki, fetch_all_mh_wikis, cache_dir, headers, get_num_of_recent_changes
+from utils.general_utils import MirahezeWiki, fetch_all_mh_wikis, cache_dir, headers, get_num_of_recent_changes
 
 
 @dataclass
@@ -73,7 +72,7 @@ def get_wiki_admin_stats(stats: AdminStats) -> None:
         stats.admins = admins
         stats.status = WikiStatus.DONE
     except Exception as e:
-        print(f"Failed for {wiki.dbname}: {e}")
+        print(f"Failed for {wiki.db_name}: {e}")
         stats.status = WikiStatus.FAILED
 
 
@@ -110,7 +109,7 @@ def print_problematic_wikis(admin_stats: list[AdminStats]) -> list[AdminStats]:
             wiki = stats.wiki
             row = (
                 "{{/entry"
-                f"|name={wiki.sitename}"
+                f"|name={wiki.site_name}"
                 f"|link={wiki.url}"
                 f"|text={delta.days} days"
                 "|status={{status}} "

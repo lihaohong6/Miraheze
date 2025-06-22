@@ -7,7 +7,7 @@ from time import sleep
 
 import requests
 
-from utils import headers, MirahezeWiki, fetch_all_mh_wikis
+from utils.general_utils import headers, MirahezeWiki, fetch_all_mh_wikis
 
 cache_path = Path("cache.pickle")
 
@@ -28,7 +28,7 @@ class FileStats:
     done: bool = False
 
     def __str__(self):
-        return (f"{self.wiki.sitename} has {self.file_count} files and {self.unused_images_count} unused images. "
+        return (f"{self.wiki.site_name} has {self.file_count} files and {self.unused_images_count} unused images. "
                 f"Total size is {file_size(self.file_size)}. "
                 f"URL: {self.wiki.url}")
 
@@ -93,7 +93,7 @@ def fetch_file_stat(file_stats: list[FileStats]):
             fetch_file_statistics(wiki)
             fetch_unused_images_count(wiki)
         except Exception as e:
-            print(f"Failed to gather data for {wiki.wiki.sitename} due to {e}")
+            print(f"Failed to gather data for {wiki.wiki.site_name} due to {e}")
         sleep(0.5)
     save_all_wikis(cache_path, file_stats)
 
