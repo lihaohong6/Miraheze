@@ -3,11 +3,17 @@ import shutil
 from argparse import ArgumentParser
 from dataclasses import dataclass
 from enum import Enum
+from json import JSONDecodeError
 from pathlib import Path
 
 from utils import cache_dir, get_logger, SessionInfo, get_csrf_token, login, headers
 
-LENGTH_LIMIT = 2 * 1000 * 1000
+# Use 200MB for Special:RequestImport. Use 2MB for Special:Import.
+# Files absolutely cannot be larger than this.
+# Leave a bit of room for header
+LENGTH_HARD_LIMIT = 200 * 1024 * 1000
+# Files should target this length to leave extra room for miscellaneous stuff.
+LENGTH_TARGET_LIMIT = 200 * 1000 * 1000
 
 xml_cache_dir = cache_dir / "xml"
 xml_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -157,14 +163,14 @@ def shard_file(original_file: Path) -> list[Path]:
     files = []
     pages = parsed_file.pages
 
-    remaining_size = LENGTH_LIMIT - str_size(parsed_file.template_start) - str_size(parsed_file.template_end)
+    remaining_size = LENGTH_TARGET_LIMIT - str_size(parsed_file.template_start) - str_size(parsed_file.template_end)
     page_groups = partition_by_size(pages, remaining_size)
 
     logger.info(f"File partitioned into {len(page_groups)} groups. Writing them to disk...")
 
     for file_number, page_group in enumerate(page_groups):
         xml_str = parsed_file.template_start + "".join(str(p) for p in page_group) + parsed_file.template_end
-        assert str_size(xml_str) <= LENGTH_LIMIT, f"File {file_number} has size {str_size(xml_str)}, greater than the configured maximum."
+        assert str_size(xml_str) <= LENGTH_HARD_LIMIT, f"File {file_number} has size {str_size(xml_str)}, greater than the configured maximum."
         file_path = xml_cache_dir / f"{original_file.stem}_{file_number}.xml"
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(xml_str)
@@ -192,7 +198,11 @@ def import_xml(file: Path, prefix: str, summary: str, session_info: SessionInfo)
     if response.status_code != 200:
         logger.error(f"Failed to import {file.name}: {response}")
         return False
-    response = response.json()
+    try:
+        response = response.json()
+    except JSONDecodeError:
+        logger.error(f"Failed to decode json for {file.name}: {response.text}")
+        return False
     if 'error' in response or 'import' not in response:
         logger.error(f"Failed to import {file.name}: {response}")
         return False
@@ -245,8 +255,8 @@ def main():
                 logger.info(f"Successfully imported {file.name}, deleting it from the cache")
                 file.unlink()
             else:
-                logger.error(f"Failed to import {file.name}. Aborting...")
-                exit(1)
+                logger.error(f"Failed to import {file.name}. Skpping...")
+                continue
 
     def clean():
         shutil.rmtree(xml_cache_dir, ignore_errors=True)

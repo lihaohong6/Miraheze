@@ -87,17 +87,28 @@ def upload_files(files: list[str], original_wiki: Site, new_wiki: Site) -> None:
         else:
             logger.error(f"Failed to upload {file_title}.")
 
+def confirm(question: str) -> None:
+    input(question + " Press enter to continue...")
 
 def upload_local_files(new_wiki: Site, comment: str = "batch file upload"):
+    confirm(f"Will flood {new_wiki.base_url('')} with image imports.")
     existing_files = get_miraheze_wiki_files(new_wiki)
-    files = [f for f in local_files_directory.iterdir() if f.is_file() and "File:" + f.name.replace(" ", "_") not in existing_files]
+    files = [f
+             for f in local_files_directory.iterdir()
+             if f.is_file() and "File:" + f.name.replace(" ", "_") not in existing_files]
+    failed_dir = local_files_directory / "failed"
+    failed_dir.mkdir(parents=True, exist_ok=True)
+    confirm(f"{len(files)} files will be uploaded.")
     for f in files:
         file_title = f"File:{f.name}"
         mime_retry = True
+        exists_normalized_retry = True
+        ignore_warnings = False
         while True:
             try:
                 new_page = FilePage(new_wiki, file_title)
-                new_page.upload(str(f.absolute()), comment=comment, text="", ignore_warnings=False)
+                new_page.upload(str(f.absolute()), comment=comment, text="", ignore_warnings=ignore_warnings)
+                f.unlink()
             except Exception as e:
                 if "MIME" in str(e) and mime_retry:
                     logger.warning(f"Mime type mismatch for {file_title}, converting to perform a try")
@@ -110,7 +121,12 @@ def upload_local_files(new_wiki: Site, comment: str = "batch file upload"):
                         f = temp_file
                         mime_retry = False
                         continue
+                if "exists-normalized" in str(e) and exists_normalized_retry:
+                    exists_normalized_retry = False
+                    ignore_warnings = True
+                    continue
                 logger.error(f"Failed to upload {file_title}: {e}")
+                f.rename(failed_dir / f.name)
             break
 
 
@@ -127,7 +143,10 @@ def main():
 
     args = parser.parse_args()
     if args.new is not None:
-        new_wiki = Site(url=args.new)
+        if "http" in args.new:
+            new_wiki = Site(url=args.new)
+        else:
+            new_wiki = Site(code=args.new)
     else:
         new_wiki = Site(code="new")
     new_wiki.login()
