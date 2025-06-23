@@ -68,12 +68,17 @@ def fetch_all_mh_wikis(cache_expiry: timedelta = DEFAULT_CACHE_EXPIRY) -> list[M
     return deserialize_miraheze_wikis(rows)
 
 
+def chunk_list(lst: list, k: int) -> list[list]:
+    return [lst[i:i + k] for i in range(0, len(lst), k)]
+
+
 T = TypeVar("T")
 
 
-def scan_wikis(mapper: Callable[[MirahezeWiki], T],
+def scan_wikis(mapper: Callable[[list[MirahezeWiki]], dict[str, T]],
                table_name: str,
-               reset: bool = False) -> list[tuple[str, T]]:
+               reset: bool = False,
+               batch_size: int = 1) -> dict[str, T]:
     wikis = fetch_all_mh_wikis()
     conn = get_conn(db_name)
     cursor = conn.cursor()
@@ -83,25 +88,28 @@ def scan_wikis(mapper: Callable[[MirahezeWiki], T],
     data TEXT NOT NULL,
     FOREIGN KEY (db_name) REFERENCES all_wikis(db_name) ON DELETE CASCADE ON UPDATE CASCADE
     )""")
+    conn.commit()
     if not reset:
         cursor.execute(f"""
         SELECT * FROM all_wikis
         WHERE db_name NOT IN (SELECT db_name FROM {table_name})
         """)
         wikis = deserialize_miraheze_wikis(cursor.fetchall())
-    for wiki in wikis:
-        result = mapper(wiki)
-        text = jsonpickle.encode(result)
-        cursor.execute(f"""
-        INSERT OR REPLACE INTO {table_name} (?, ?)
-        """, (wiki.db_name, text))
+    wiki_chunks = chunk_list(wikis, batch_size)
+    for wiki_chunk in wiki_chunks:
+        result = mapper(wiki_chunk)
+        for wiki_db_name, extension_info in result.items():
+            text = jsonpickle.encode(extension_info)
+            cursor.execute(f"""
+            INSERT OR REPLACE INTO {table_name} VALUES (?, ?)
+            """, (wiki_db_name, text))
         conn.commit()
     cursor.execute(f"""
     SELECT db_name, data FROM {table_name}
     """)
     rows = cursor.fetchall()
     assert len(rows) >= 500
-    return [(row[0], jsonpickle.decode(row[1])) for row in rows]
+    return dict((row[0], jsonpickle.decode(row[1])) for row in rows)
 
 
 def main():
