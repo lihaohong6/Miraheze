@@ -15,7 +15,7 @@ class WikiExtensionStatistics:
     extensions: list[str]
 
 
-def get_wiki_extension_statistics(wikis: list[MirahezeWiki]) -> dict[str, WikiExtensionStatistics]:
+def fetch_wiki_extension_statistics(wikis: list[MirahezeWiki]) -> dict[str, WikiExtensionStatistics]:
     db_names = "|".join(w.db_name for w in wikis)
     response = requests.get("https://meta.miraheze.org/w/api.php", params={
         'action': 'query',
@@ -51,11 +51,14 @@ def sort_dict(d: dict[K, V]) -> None:
     d.update(result)
 
 
-def main():
-    result = scan_wikis(get_wiki_extension_statistics,
+def get_wiki_extension_statistics() -> dict[str, WikiExtensionStatistics]:
+    return scan_wikis(fetch_wiki_extension_statistics,
                         "wiki_extensions",
                         reset=False,
                         batch_size=50)
+
+def main():
+    result = get_wiki_extension_statistics()
     extension_counter: dict[str, int] = defaultdict(int)
     default_skin_counter: dict[str, int] = defaultdict(int)
     skip_skin_counter: dict[str, int] = defaultdict(int)

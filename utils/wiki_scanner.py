@@ -75,7 +75,7 @@ def chunk_list(lst: list, k: int) -> list[list]:
 T = TypeVar("T")
 
 
-def scan_wikis(mapper: Callable[[list[MirahezeWiki]], dict[str, T]],
+def scan_wikis(mapper: Callable[[list[MirahezeWiki]], dict[str, T | None]],
                table_name: str,
                reset: bool = False,
                batch_size: int = 1) -> dict[str, T]:
