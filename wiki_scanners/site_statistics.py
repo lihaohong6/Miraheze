@@ -40,11 +40,12 @@ def fetch_wiki_site_statistics(wikis: list[MirahezeWiki]) -> dict[str, WikiSiteS
     }
 
 
-def get_wiki_site_statistics() -> dict[str, WikiSiteStatistics | None]:
+def get_wiki_site_statistics(read_only: bool = False) -> dict[str, WikiSiteStatistics | None]:
     return scan_wikis(fetch_wiki_site_statistics,
                       "wiki_statistics",
                       reset=False,
-                      batch_size=1)
+                      batch_size=1,
+                      read_only=read_only)
 
 
 def main():

@@ -40,8 +40,10 @@ def fetch_wiki_extension_statistics(wikis: list[MirahezeWiki]) -> dict[str, Wiki
         )
     return result
 
+
 K = TypeVar('K')
 V = TypeVar('V')
+
 
 def sort_dict(d: dict[K, V]) -> None:
     result: dict[K, V] = {}
@@ -51,11 +53,13 @@ def sort_dict(d: dict[K, V]) -> None:
     d.update(result)
 
 
-def get_wiki_extension_statistics() -> dict[str, WikiExtensionStatistics]:
+def get_wiki_extension_statistics(read_only: bool = False) -> dict[str, WikiExtensionStatistics]:
     return scan_wikis(fetch_wiki_extension_statistics,
-                        "wiki_extensions",
-                        reset=False,
-                        batch_size=50)
+                      "wiki_extensions",
+                      reset=False,
+                      batch_size=50,
+                      read_only=read_only)
+
 
 def main():
     result = get_wiki_extension_statistics()

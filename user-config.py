@@ -1,5 +1,6 @@
 family_files['meta'] = 'https://meta.miraheze.org/w/api.php'
 family_files['local'] = 'http://localhost:8080/api.php'
+family_files['beta'] = 'https://exttest.mirabeta.org/w/api.php'
 
 family = 'meta'
 mylang = 'meta'
