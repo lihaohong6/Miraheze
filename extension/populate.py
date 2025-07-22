@@ -524,17 +524,21 @@ Wikisource
 Wikistories
 XAnalytics"""
 
+def get_wmf_extensions() -> set[str]:
+    return set(e.replace(' ', '').lower() for e in wmf_extension_string.splitlines())
+
 def main():
     s = Site('beta')
+    s.login()
     extensions: list[str] = extension_string.splitlines()
-    wmf_extensions: set[str] = set(wmf_extension_string.splitlines())
+    wmf_extensions: set[str] = get_wmf_extensions()
     for page in PreloadingGenerator(Page(s, e) for e in extensions):
         setattr(page, "_bot_may_edit", True)
         edited = False
         if not page.exists():
             page.text = "{{ManualTest}}"
             edited = True
-        if "{{WMF}}" not in page.text and page.title() in wmf_extensions:
+        if "{{WMF}}" not in page.text and page.title().replace(' ', '').lower() in wmf_extensions:
             page.text = "{{WMF}}" + page.text
             edited = True
         if edited:
