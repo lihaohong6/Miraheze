@@ -53,16 +53,20 @@ def sort_dict(d: dict[K, V]) -> None:
     d.update(result)
 
 
-def get_wiki_extension_statistics(read_only: bool = False) -> dict[str, WikiExtensionStatistics]:
-    return scan_wikis(fetch_wiki_extension_statistics,
-                      "wiki_extensions",
-                      reset=False,
-                      batch_size=50,
-                      read_only=read_only)
+def get_wiki_extension_statistics(reset: bool = False, read_only: bool = False) -> dict[str, WikiExtensionStatistics]:
+    res = scan_wikis(fetch_wiki_extension_statistics,
+                     "wiki_extensions",
+                     reset=reset,
+                     batch_size=50,
+                     read_only=read_only)
+    for k, v in res.items():
+        if isinstance(v, dict):
+            res[k] = WikiExtensionStatistics(**v)
+    return res
 
 
-def main():
-    result = get_wiki_extension_statistics()
+def analyze_extension_statistics():
+    result = get_wiki_extension_statistics(reset=False)
     extension_counter: dict[str, int] = defaultdict(int)
     default_skin_counter: dict[str, int] = defaultdict(int)
     skip_skin_counter: dict[str, int] = defaultdict(int)
@@ -75,6 +79,15 @@ def main():
     sort_dict(extension_counter)
     sort_dict(default_skin_counter)
     sort_dict(skip_skin_counter)
+    return extension_counter, default_skin_counter, skip_skin_counter
+
+
+def get_extension_popularity_statistics() -> dict[str, int]:
+    return analyze_extension_statistics()[0]
+
+
+def main():
+    extension_counter, default_skin_counter, skip_skins = analyze_extension_statistics()
     save_json_page("User:PetraMagnaBot/extension_statistics.json", extension_counter)
     save_json_page("User:PetraMagnaBot/default_skins.json", default_skin_counter)
 
