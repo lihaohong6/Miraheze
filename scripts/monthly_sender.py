@@ -38,14 +38,16 @@ def main():
     page = Page(meta(), args.page)
     talk_pages = [Page(meta(), title) for title in parse_links(page)]
     talk_pages = list(PreloadingGenerator(talk_pages))
-    assert all(p.namespace().id == 3 for p in talk_pages)
+    for p in talk_pages:
+        if p.namespace().id != 3:
+            print(f"Warning: {p.title()} is not in user talk NS.")
     date = args.date
     text = f"""==Miraheze Monthly - [[User:Raidarr/Miraheze Monthly/{date}|{date} issue]]==
 {{{{:User:Raidarr/Miraheze Monthly/{date}}}}}
 <div style="text-align: right"><span style="display: none">[[User:%s]]</span>Delivered by ~~~~</div>"""
     for page in talk_pages:
         if page.text.strip() != "":
-            page.text.rstrip() + "\n\n"
+            page.text = page.text.rstrip() + "\n\n"
         username = page.title().split("/")[0].split(":")[1]
         user_message = text.replace("%s", username)
         page.text += user_message
