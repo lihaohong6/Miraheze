@@ -2,7 +2,6 @@ import dataclasses
 import enum
 import json
 import logging
-import pickle
 import sys
 from dataclasses import dataclass
 from functools import cache
@@ -15,7 +14,7 @@ from requests import Session
 
 headers = {'User-Agent': 'MediaWiki bot by User:PetraMagna', }
 
-cache_dir = Path('../cache')
+cache_dir = Path('cache')
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 

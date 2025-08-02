@@ -1,9 +1,12 @@
 import pickle
 import subprocess
 from argparse import ArgumentParser
+from collections.abc import Callable
 from pathlib import Path
 
+import requests
 from pywikibot import Site, FilePage
+from pywikibot.data.api import ListGenerator
 from pywikibot.pagegenerators import GeneratorFactory, PreloadingGenerator
 
 from utils.general_utils import cache_dir, get_logger
@@ -20,6 +23,18 @@ def get_files_on_wiki(site: Site) -> set[str]:
     for p in gen:
         p: FilePage
         result.add(p.title(with_ns=True, underscore=True))
+        if len(result) % 500 == 0:
+            logger.info(f"{len(result)} pages processed")
+    return result
+
+
+def load_cache_or_fetch(cache_file: Path, fetch_function: Callable):
+    if not cache_file.exists():
+        result = fetch_function()
+        with open(cache_file, "wb") as f:
+            pickle.dump(result, f)
+    else:
+        result = pickle.load(open(cache_file, "rb"))
     return result
 
 
@@ -31,25 +46,25 @@ def get_original_wiki_files(original_wiki: Site) -> set[str]:
     :return:
     """
     cache_file = cache_dir / "original_images.pickle"
-    if not cache_file.exists():
-        files = get_files_on_wiki(original_wiki)
-        with open(cache_file, "wb") as f:
-            pickle.dump(files, f)
-    else:
-        files = pickle.load(open(cache_file, "rb"))
-    return files
+    return load_cache_or_fetch(cache_file, lambda: get_files_on_wiki(original_wiki))
 
 
 def get_miraheze_wiki_files(new_wiki: Site) -> set[str]:
-    """
-    Cannot cache because we might have uploaded more files last time.
-    :return:
-    """
     logger.info("Retrieving miraheze wiki files...")
-    return get_files_on_wiki(new_wiki)
+    cache_file = cache_dir / "mh_wiki_files.pickle"
+    return load_cache_or_fetch(cache_file, lambda: get_files_on_wiki(new_wiki))
 
 
-def get_upload_source(old_page: FilePage) -> str | None:
+def download_file(url: str, local_file: Path):
+    # NOTE the stream=True parameter below
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        with open(local_file, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+
+def get_upload_source(old_page: FilePage) -> Path:
     """
     Figure out how to upload a file from a FilePage.
     The file might be available locally already, or it must be downloaded
@@ -62,8 +77,12 @@ def get_upload_source(old_page: FilePage) -> str | None:
         local_file = local_files_directory / file_name
         if local_file.exists():
             logger.info(f"File {file_name} found locally. Using that version instead.")
-            return str(local_file)
-    return old_page.get_file_url()
+            return local_file
+    local_file_dir = cache_dir / "images"
+    local_file_dir.mkdir(parents=True, exist_ok=True)
+    local_file = local_file_dir / file_name
+    download_file(old_page.get_file_url(), local_file)
+    return local_file
 
 
 def upload_files(files: list[str], original_wiki: Site, new_wiki: Site) -> None:
@@ -72,14 +91,26 @@ def upload_files(files: list[str], original_wiki: Site, new_wiki: Site) -> None:
     counter = 0
     for old_page in gen:
         old_page: FilePage
+        if not old_page.title().endswith("ogg"):
+            continue
+        if not old_page.exists():
+            logger.warning(f"{old_page} does not exist on the original wiki")
+            continue
         file_title = old_page.title(with_ns=True, underscore=True)
         new_page = FilePage(new_wiki, file_title)
+        if new_page.exists():
+            logger.warning(f"{new_page} already exists")
+            continue
         upload_source = get_upload_source(old_page)
         if upload_source is None:
             continue
-        res = new_page.upload(upload_source,
-                              text=old_page.text,
-                              summary=f"Imported from {old_page.full_url()}")
+        try:
+            res = new_page.upload(str(upload_source),
+                                  text=old_page.text,
+                                  comment=f"Batch import file")
+        except Exception as e:
+            logger.error(f"{e} for {new_page.title()}")
+            continue
         if res:
             counter += 1
             if counter > 0 and counter % 100 == 0:
@@ -130,6 +161,40 @@ def upload_local_files(new_wiki: Site, comment: str = "batch file upload"):
             break
 
 
+def get_wanted_files(new_wiki: Site) -> set[str]:
+    def generate_page_set():
+        gen = GeneratorFactory(new_wiki)
+        gen.handle_args(['-querypage:Wantedfiles', '-ns:File'])
+        gen = gen.getCombinedGenerator(preload=False)
+        result: set[str] = set()
+        for page in gen:
+            print(page.title())
+            result.add(page.title(with_ns=True, underscore=True))
+        return result
+
+    cache_file = cache_dir / "wanted_files.pickle"
+    return load_cache_or_fetch(cache_file, generate_page_set)
+
+
+def generate_all_used_files(new_wiki: Site) -> set[str]:
+    gen = ListGenerator(listaction="allfileusages",
+                        site=new_wiki,
+                        afunique=True,
+                        afprop="title")
+    result: set[str] = set()
+    for row in gen:
+        title: str = row['title']
+        result.add(title.replace(' ', '_'))
+        if len(result) % 500 == 0:
+            logger.info(f"{len(result)} file usages found")
+    return result
+
+
+def get_all_file_usage(new_wiki: Site) -> set[str]:
+    cache_file = cache_dir / "all_file_usage.pickle"
+    return load_cache_or_fetch(cache_file, lambda: generate_all_used_files(new_wiki))
+
+
 def main():
     parser = ArgumentParser()
     parser.add_argument("--original", type=str, default=None, help="Url of original wiki.")
@@ -137,8 +202,12 @@ def main():
     parser.add_argument("-i", "--images", dest="images", type=str, default=None,
                         help="Local images directory. The program can use images from this directory instead of"
                              "the original wiki, which helps reduce requests made to the original wiki.")
-    parser.add_argument("-l", "--local", action="store_true",
-                        help="Only import images that exist locally.")
+    parser.add_argument("-m", "--mode", type=str, required=True,
+                        choices=["local", "wanted", "allfileusage", "all"],
+                        help="local: only upload images in the local repository"
+                             "wanted: only import images that are on Special:WantedFiles\n"
+                             "allfileusage: use query api's allfileusage to look up all wanted files\n"
+                             "all: all files on the fandom wiki")
     parser.add_argument("-s", "--summary", type=str, default="batch file upload")
 
     args = parser.parse_args()
@@ -154,7 +223,8 @@ def main():
     if args.images:
         local_files_directory = Path(args.images)
         assert local_files_directory.exists(), f"{local_files_directory} does not exist"
-    local_only = args.local
+    mode = args.mode
+    local_only = mode == "local"
     if local_only:
         assert local_files_directory is not None
         print("Uploading local files only")
@@ -164,7 +234,14 @@ def main():
         original_wiki = Site(url=args.original)
     else:
         original_wiki = Site(code="original")
-    all_files = get_original_wiki_files(original_wiki)
+    if mode == "wanted":
+        all_files = get_wanted_files(new_wiki)
+    elif mode == "allfileusage":
+        all_files = get_all_file_usage(new_wiki)
+    elif mode == "all":
+        all_files = get_original_wiki_files(original_wiki)
+    else:
+        raise Exception(f"Unknown mode {mode}")
     miraheze_files = get_miraheze_wiki_files(new_wiki)
     files_needing_upload = all_files.difference(miraheze_files)
     upload_files(list(files_needing_upload), original_wiki, new_wiki)
