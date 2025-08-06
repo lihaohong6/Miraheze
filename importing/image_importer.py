@@ -1,4 +1,5 @@
 import pickle
+import re
 import subprocess
 from argparse import ArgumentParser
 from collections.abc import Callable
@@ -64,7 +65,7 @@ def download_file(url: str, local_file: Path):
                 f.write(chunk)
 
 
-def get_upload_source(old_page: FilePage) -> Path:
+def get_upload_source(old_page: FilePage) -> Path | None:
     """
     Figure out how to upload a file from a FilePage.
     The file might be available locally already, or it must be downloaded
@@ -81,42 +82,99 @@ def get_upload_source(old_page: FilePage) -> Path:
     local_file_dir = cache_dir / "images"
     local_file_dir.mkdir(parents=True, exist_ok=True)
     local_file = local_file_dir / file_name
-    download_file(old_page.get_file_url(), local_file)
-    return local_file
+    try:
+        download_file(old_page.get_file_url(), local_file)
+        return local_file
+    except Exception as e:
+        logger.error(f"Error downloading {file_name}: {e}")
+        return None
+
+def upload_file(f: Path,
+                new_wiki: Site,
+                text: str = "",
+                comment: str = "Batch image upload",
+                mime_retry: bool = False,
+                exists_normalized_retry: bool = False,
+                redirect_duplicate: bool = False,
+                ignore_filename_prefix: bool = False) -> bool:
+    file_title = f"File:{f.name}"
+    ignore_warnings = False
+    while True:
+        try:
+            new_page = FilePage(new_wiki, file_title)
+        except Exception as e:
+            logger.error(f"Failed to create file page {file_title} due to {e}")
+            return False
+        if new_page.exists():
+            return False
+        try:
+            new_page.upload(str(f.absolute()), comment=comment, text=text, ignore_warnings=ignore_warnings)
+            f.unlink()
+            return True
+        except Exception as e:
+            if "MIME" in str(e) and mime_retry:
+                logger.warning(f"Mime type mismatch for {file_title}, converting to perform a try")
+                temp_file = cache_dir / f"temp{f.suffix}"
+                temp_file.unlink(missing_ok=True)
+                p = subprocess.run(["magick", f, temp_file],
+                                   stdout=subprocess.DEVNULL,
+                                   stderr=subprocess.DEVNULL)
+                if p.returncode == 0:
+                    f = temp_file
+                    mime_retry = False
+                    continue
+            if "exists-normalized" in str(e) and exists_normalized_retry:
+                exists_normalized_retry = False
+                ignore_warnings = True
+                continue
+            if "duplicate" in str(e) and redirect_duplicate:
+                match = re.search(r"a duplicate of \['([^']+)'[,\]]", str(e))
+                assert match is not None, f"Failed to match error {e}"
+                redirect_target = FilePage(new_wiki, match.group(1))
+                new_page.set_redirect_target(redirect_target,
+                                             summary="Redirect duplicate file page",
+                                             create=True)
+                f.unlink()
+                return True
+            if ("thumb-name" in str(e) or "bad-prefix" in str(e) in str(e)) and ignore_filename_prefix:
+                ignore_filename_prefix = False
+                ignore_warnings = True
+                continue
+            logger.error(f"Failed to upload {file_title}: {e}")
+            return False
 
 
-def upload_files(files: list[str], original_wiki: Site, new_wiki: Site) -> None:
+def has_valid_extension(wiki: Site, file_name: str) -> bool:
+    try:
+        fp = FilePage(wiki, file_name)
+        return True
+    except Exception:
+        return False
+
+
+def upload_files(files: list[str], original_wiki: Site, new_wiki: Site, comment: str = "Batch import file") -> None:
     logger.info(f"Beginning to upload {len(files)} files.")
-    gen = PreloadingGenerator(FilePage(original_wiki, f) for f in files)
+    gen = PreloadingGenerator(FilePage(original_wiki, f)
+                              for f in files
+                              if has_valid_extension(original_wiki, f))
     counter = 0
     for old_page in gen:
         old_page: FilePage
-        if not old_page.title().endswith("ogg"):
-            continue
         if not old_page.exists():
             logger.warning(f"{old_page} does not exist on the original wiki")
-            continue
-        file_title = old_page.title(with_ns=True, underscore=True)
-        new_page = FilePage(new_wiki, file_title)
-        if new_page.exists():
-            logger.warning(f"{new_page} already exists")
             continue
         upload_source = get_upload_source(old_page)
         if upload_source is None:
             continue
-        try:
-            res = new_page.upload(str(upload_source),
-                                  text=old_page.text,
-                                  comment=f"Batch import file")
-        except Exception as e:
-            logger.error(f"{e} for {new_page.title()}")
-            continue
+        res = upload_file(upload_source, new_wiki, comment=comment, text=old_page.text,
+                          exists_normalized_retry=True,
+                          mime_retry=True,
+                          redirect_duplicate=True,
+                          ignore_filename_prefix=True)
         if res:
             counter += 1
             if counter > 0 and counter % 100 == 0:
                 logger.info(f"Uploaded {counter + 1}/{len(files)} files.")
-        else:
-            logger.error(f"Failed to upload {file_title}.")
 
 def confirm(question: str) -> None:
     input(question + " Press enter to continue...")
@@ -131,34 +189,9 @@ def upload_local_files(new_wiki: Site, comment: str = "batch file upload"):
     failed_dir.mkdir(parents=True, exist_ok=True)
     confirm(f"{len(files)} files will be uploaded.")
     for f in files:
-        file_title = f"File:{f.name}"
-        mime_retry = True
-        exists_normalized_retry = True
-        ignore_warnings = False
-        while True:
-            try:
-                new_page = FilePage(new_wiki, file_title)
-                new_page.upload(str(f.absolute()), comment=comment, text="", ignore_warnings=ignore_warnings)
-                f.unlink()
-            except Exception as e:
-                if "MIME" in str(e) and mime_retry:
-                    logger.warning(f"Mime type mismatch for {file_title}, converting to perform a try")
-                    temp_file = cache_dir / f"temp{f.suffix}"
-                    temp_file.unlink(missing_ok=True)
-                    p = subprocess.run(["magick", f, temp_file],
-                                       stdout=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL)
-                    if p.returncode == 0:
-                        f = temp_file
-                        mime_retry = False
-                        continue
-                if "exists-normalized" in str(e) and exists_normalized_retry:
-                    exists_normalized_retry = False
-                    ignore_warnings = True
-                    continue
-                logger.error(f"Failed to upload {file_title}: {e}")
-                f.rename(failed_dir / f.name)
-            break
+        res = upload_file(f, new_wiki, comment=comment, exists_normalized_retry=True, mime_retry=True)
+        if not res:
+            f.rename(failed_dir / f.name)
 
 
 def get_wanted_files(new_wiki: Site) -> set[str]:
@@ -208,7 +241,7 @@ def main():
                              "wanted: only import images that are on Special:WantedFiles\n"
                              "allfileusage: use query api's allfileusage to look up all wanted files\n"
                              "all: all files on the fandom wiki")
-    parser.add_argument("-s", "--summary", type=str, default="batch file upload")
+    parser.add_argument("-s", "--summary", type=str, default="Batch file import")
 
     args = parser.parse_args()
     if args.new is not None:
@@ -244,7 +277,7 @@ def main():
         raise Exception(f"Unknown mode {mode}")
     miraheze_files = get_miraheze_wiki_files(new_wiki)
     files_needing_upload = all_files.difference(miraheze_files)
-    upload_files(list(files_needing_upload), original_wiki, new_wiki)
+    upload_files(list(files_needing_upload), original_wiki, new_wiki, comment=args.summary)
 
 
 if __name__ == "__main__":

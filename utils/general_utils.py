@@ -79,7 +79,7 @@ def get_num_of_recent_changes(wiki: MirahezeWiki) -> int:
 
 
 def get_logger(name: str = "logger") -> logging.Logger:
-    log_root = Path("../logs")
+    log_root = Path("logs")
     log_root.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=logging.INFO,
                         filename=log_root / f"{name}_log.txt",
