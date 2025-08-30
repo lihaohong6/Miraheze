@@ -12,7 +12,7 @@ from utils.general_utils import headers, site, save_json_page
 def main():
     response = requests.get("https://meta.miraheze.org/w/api.php", params={
         'action': 'parse',
-        'text': '{{NUMBEROFWIKIS}}',
+        'text': '<p id="numofwikis">{{NUMBEROFWIKIS}}</p><p id="activewikis">{{NUMBEROFACTIVEWIKIS}}</p>',
         'contentmodel': 'wikitext',
         'prop': 'text',
         'format': 'json',
@@ -22,12 +22,27 @@ def main():
         print(response.text)
         return
     text = response.json()['parse']['text']['*']
-    num = re.search(r"<p>(\d+)(\n)?</p>", text).group(1)
-    num = int(num)
+
+    def get_num(element_id: str) -> int:
+        num = re.search(rf'<p id="{element_id}">(\d+)(\n)?</p>', text).group(1)
+        return int(num)
+
     current_date = datetime.now()
     date_format = current_date.strftime("%Y-%m-%d")
-    page = Page(site(), "User:PetraMagnaBot/number_of_wikis.json")
-    obj = json.loads(page.text)
+
+    add_data_to_page(date_format,
+                     get_num("numofwikis"),
+                     Page(site(), "User:PetraMagnaBot/number_of_wikis.json"))
+    add_data_to_page(date_format,
+                     get_num("activewikis"),
+                     Page(site(), "User:PetraMagnaBot/number_of_active_wikis.json"))
+
+
+def add_data_to_page(date_format: str, num: int, page: Page):
+    if page.text != "":
+        obj = json.loads(page.text)
+    else:
+        obj = dict()
     # Don't override existing values
     if date_format in obj:
         return
