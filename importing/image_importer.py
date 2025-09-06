@@ -10,7 +10,7 @@ from pywikibot import Site, FilePage
 from pywikibot.data.api import ListGenerator
 from pywikibot.pagegenerators import GeneratorFactory, PreloadingGenerator
 
-from utils.general_utils import cache_dir, get_logger
+from utils.general_utils import cache_dir, get_logger, anonymous_headers
 
 local_files_directory: Path | None = None
 
@@ -58,7 +58,7 @@ def get_miraheze_wiki_files(new_wiki: Site) -> set[str]:
 
 def download_file(url: str, local_file: Path):
     # NOTE the stream=True parameter below
-    with requests.get(url, stream=True) as r:
+    with requests.get(url, stream=True, headers=anonymous_headers) as r:
         r.raise_for_status()
         with open(local_file, 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -83,7 +83,8 @@ def get_upload_source(old_page: FilePage) -> Path | None:
     local_file_dir.mkdir(parents=True, exist_ok=True)
     local_file = local_file_dir / file_name
     try:
-        download_file(old_page.get_file_url(), local_file)
+        if not local_file.exists():
+            download_file(old_page.get_file_url(), local_file)
         return local_file
     except Exception as e:
         logger.error(f"Error downloading {file_name}: {e}")
@@ -129,6 +130,9 @@ def upload_file(f: Path,
                 continue
             if "duplicate" in str(e) and redirect_duplicate:
                 match = re.search(r"a duplicate of \['([^']+)'[,\]]", str(e))
+                if match is None:
+                    print(f"Cannot match error {e}")
+                    return False
                 assert match is not None, f"Failed to match error {e}"
                 redirect_target = FilePage(new_wiki, match.group(1))
                 new_page.set_redirect_target(redirect_target,
@@ -227,6 +231,11 @@ def get_all_file_usage(new_wiki: Site) -> set[str]:
     cache_file = cache_dir / "all_file_usage.pickle"
     return load_cache_or_fetch(cache_file, lambda: generate_all_used_files(new_wiki))
 
+def to_site(o: str) -> Site:
+    if "http" in o:
+        return Site(url=o)
+    else:
+        return Site(code=o)
 
 def main():
     parser = ArgumentParser()
@@ -245,10 +254,7 @@ def main():
 
     args = parser.parse_args()
     if args.new is not None:
-        if "http" in args.new:
-            new_wiki = Site(url=args.new)
-        else:
-            new_wiki = Site(code=args.new)
+        new_wiki = to_site(args.new)
     else:
         new_wiki = Site(code="new")
     new_wiki.login()
@@ -264,7 +270,7 @@ def main():
         upload_local_files(new_wiki, comment=args.summary)
         return
     if args.original:
-        original_wiki = Site(url=args.original)
+        original_wiki = to_site(args.original)
     else:
         original_wiki = Site(code="original")
     if mode == "wanted":
@@ -277,7 +283,8 @@ def main():
         raise Exception(f"Unknown mode {mode}")
     miraheze_files = get_miraheze_wiki_files(new_wiki)
     files_needing_upload = all_files.difference(miraheze_files)
-    upload_files(list(files_needing_upload), original_wiki, new_wiki, comment=args.summary)
+    files = list(files_needing_upload)
+    upload_files(files, original_wiki, new_wiki, comment=args.summary)
 
 
 if __name__ == "__main__":

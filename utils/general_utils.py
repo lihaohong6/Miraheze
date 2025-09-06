@@ -13,6 +13,7 @@ from pywikibot.data.api import Request
 from requests import Session
 
 headers = {'User-Agent': 'MediaWiki bot by User:PetraMagna', }
+anonymous_headers = {'User-Agent': 'MediaWiki bot', }
 
 cache_dir = Path('cache')
 cache_dir.mkdir(parents=True, exist_ok=True)
