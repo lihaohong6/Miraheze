@@ -1,7 +1,8 @@
+from pywikibot import Site
 from pywikibot.pagegenerators import GeneratorFactory
 
 
-def main():
+def delete_imports():
     gen = GeneratorFactory()
     gen.handle_args(['-start:Template:!'])
     gen = gen.getCombinedGenerator()
@@ -24,5 +25,40 @@ def main():
                 print(page.full_url() + "?action=history")
 
 
+def is_language_code(code: str):
+    from langcodes import Language
+    code = code.split('-')[0]
+    try:
+        lang = Language.make(language=code)
+        return lang.is_valid()
+    except:
+        return False
+
+def delete_translations():
+    s = Site()
+    s.login()
+    prefixes = []
+    while True:
+        prefix = input("Prefix to remove translations from: ")
+        if prefix.strip() == "":
+            break
+        prefixes.append(prefix)
+
+    for prefix in prefixes:
+        prefix += "/"
+        prefix = prefix.replace(" ", "_")
+        gen = GeneratorFactory()
+        gen.handle_args([f'-prefixindex:{prefix}'])
+        gen = gen.getCombinedGenerator()
+        for page in gen:
+            last_segment = page.title(underscore=True).replace(prefix, "")
+            if not is_language_code(last_segment):
+                print(page.title() + " is not a language page")
+                continue
+            print(f"Deleting {page.title()}")
+            page.delete(reason="Delete orphan translation pages after the original is unmarked for translation",
+                        prompt=False)
+
+
 if __name__ == "__main__":
-    main()
+    delete_translations()
