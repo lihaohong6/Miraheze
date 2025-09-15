@@ -56,8 +56,7 @@ def delete_translations():
                 print(page.title() + " is not a language page")
                 continue
             print(f"Deleting {page.title()}")
-            page.delete(reason="Delete orphan translation pages after the original is unmarked for translation",
-                        prompt=False)
+            s.delete(page, reason="Delete orphan translation pages after the original is unmarked for translation")
 
 
 if __name__ == "__main__":

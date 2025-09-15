@@ -12,6 +12,7 @@ class WikiSiteStatistics:
     articles: int
     edits: int
     images: int
+    users: int
     active_users: int
 
 
@@ -30,6 +31,7 @@ def fetch_wiki_site_statistics(wikis: list[MirahezeWiki]) -> dict[str, WikiSiteS
             articles=r['articles'],
             edits=r['edits'],
             images=r['images'],
+            users=r['users'],
             active_users=r['activeusers'],
         )
     except Exception as e:

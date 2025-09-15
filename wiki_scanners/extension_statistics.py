@@ -10,8 +10,7 @@ from utils.wiki_scanner import scan_wikis
 
 @dataclass
 class WikiExtensionStatistics:
-    default_skin: str
-    skip_skins: list[str]
+    settings: dict
     extensions: list[str]
 
 
@@ -23,6 +22,7 @@ def fetch_wiki_extension_statistics(wikis: list[MirahezeWiki]) -> dict[str, Wiki
         'wcfwikis': db_names,
         'wcfprop': 'settings|extensions',
         'format': 'json',
+        'formatversion': 2,
     }, headers=headers)
     response = response.json()['query']['wikiconfig']
     result: dict[str, WikiExtensionStatistics] = {}
@@ -31,12 +31,9 @@ def fetch_wiki_extension_statistics(wikis: list[MirahezeWiki]) -> dict[str, Wiki
         settings = row['settings']
         if len(settings) == 0:
             settings = {}
-        default_skin = settings.get('wgDefaultSkin', '')
-        skip_skins = settings.get('wgSkipSkins', [])
         result[row['name']] = WikiExtensionStatistics(
             extensions=extensions,
-            default_skin=default_skin,
-            skip_skins=skip_skins
+            settings=settings,
         )
     return result
 
@@ -73,8 +70,8 @@ def analyze_extension_statistics():
     for db_name, stats in result.items():
         for extension in stats.extensions:
             extension_counter[extension] += 1
-        default_skin_counter[stats.default_skin] += 1
-        for skin in stats.skip_skins:
+        default_skin_counter[stats.settings['default_skin']] += 1
+        for skin in stats.settings['skip_skins']:
             skip_skin_counter[skin] += 1
     sort_dict(extension_counter)
     sort_dict(default_skin_counter)
