@@ -8,11 +8,13 @@ dependencies = [
     "beautifulsoup4>=4.13.4",
     "jsonpickle>=4.1.1",
     "langcodes>=3.5.0",
+    "lxml>=6.0.1",
     "matplotlib>=3.10.3",
     "mwoauth>=0.4.0",
     "pywikibot>=10.3.0",
     "requests>=2.32.3",
     "waybackpack>=0.6.4",
+    "wikibaseintegrator>=0.12.14",
     "wikitextparser>=0.56.4",
 ]
 
