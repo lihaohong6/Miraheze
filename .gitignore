@@ -11,3 +11,4 @@ user-passwords.py
 /logs
 sandbox.py
 /databases
+/communities/bot_oauth.py
