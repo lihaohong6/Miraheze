@@ -3,6 +3,15 @@ revision = 3
 requires-python = ">=3.13"
 
 [[package]]
+name = "airium"
+version = "0.2.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/b2/b03d50eaf3ddbc258d376e1f8439cf2575afaff93d07a42c9de720792e46/airium-0.2.7.tar.gz", hash = "sha256:6b4dd8b69838b7766179ab90078a049dc337b1da4fc0f7754f30f74d6eed706e", size = 20269, upload-time = "2025-06-10T14:01:53.879Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b7/cb/d92ab9a9571e82f8107865bda7d7cbdaf43d48eec94ec69f45bff6dc4e4c/airium-0.2.7-py3-none-any.whl", hash = "sha256:35e3ae334327b17b7c2fc39bb57ab2c48171ca849f8cf3dff11437d1e054952e", size = 13806, upload-time = "2025-06-10T14:01:52.83Z" },
+]
+
+[[package]]
 name = "backoff"
 version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -310,6 +319,7 @@ name = "miraheze"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "airium" },
     { name = "beautifulsoup4" },
     { name = "jsonpickle" },
     { name = "langcodes" },
@@ -325,6 +335,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "airium", specifier = ">=0.2.7" },
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
     { name = "jsonpickle", specifier = ">=4.1.1" },
     { name = "langcodes", specifier = ">=3.5.0" },
