@@ -91,16 +91,30 @@ def get_num_of_recent_changes(wiki: MirahezeWiki) -> int:
 def get_logger(name: str = "logger") -> logging.Logger:
     log_root = Path("logs")
     log_root.mkdir(parents=True, exist_ok=True)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    file_handler_debug = logging.FileHandler(log_root / f"{name}_log_debug.txt")
+    file_handler_debug.setLevel(logging.DEBUG)
+    file_handler_debug.setFormatter(formatter)
+
+    file_handler_warning = logging.FileHandler(log_root / f"{name}_log_warning.txt")
+    file_handler_warning.setLevel(logging.WARNING)
+    file_handler_warning.setFormatter(formatter)
+
     logging.basicConfig(level=logging.INFO,
                         filename=log_root / f"{name}_log.txt",
                         filemode="a",
                         encoding="utf-8")
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+    stdout_handler.setFormatter(formatter)
+
     logger = logging.getLogger(name)
-    logger.addHandler(handler)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(stdout_handler)
+    logger.addHandler(file_handler_debug)
+    logger.addHandler(file_handler_warning)
     return logger
 
 
