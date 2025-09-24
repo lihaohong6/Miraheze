@@ -7,7 +7,7 @@ from wikibaseintegrator.wbi_config import config as wbi_config
 from wikibaseintegrator.wbi_helpers import search_entities
 
 from communities.bot_oauth import bot_passwords
-from communities.wiki_list import get_item_id_from_wiki, insert_item_id_for_wiki
+from communities.wiki_list import get_item_id_from_wiki, insert_item_id_for_wiki, db_fetch
 from utils.general_utils import user_agent, MirahezeWiki
 from utils.wiki_scanner import fetch_all_mh_wikis, run_wiki_scanner_query
 from wiki_scanners.extension_statistics import get_wiki_extension_statistics, WikiExtensionStatistics
@@ -69,6 +69,8 @@ def get_all_stats() -> dict[str, MirahezeWikiStats]:
 def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
                                 item: ItemEntity,
                                 wiki_stats: MirahezeWikiStats):
+    if wiki_stats.wiki is None or wiki_stats.extensions is None or wiki_stats.statistics is None:
+        return
     wiki = wiki_stats.wiki
     db_name = wiki.db_name
     name = wiki.site_name
@@ -76,6 +78,10 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
     item.labels.set('en', name)
     item.aliases.set('en', db_name)
     item.aliases.set('en', url)
+
+    if wiki.creation_date is not None:
+        claim = datatypes.Time(prop_nr='P19', time="+" + wiki.creation_date.split('T')[0] + "T00:00:00Z")
+        item.claims.add(claim)
 
     string_claims = {
         'P12': db_name,
@@ -126,15 +132,18 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
 
 def update_site_statistics(wbi: WikibaseIntegrator):
     stats = get_all_stats()
-    most_active_wikis = [r[0] for r in run_wiki_scanner_query("most_active_users")][600:1000]
-
-    for db in most_active_wikis:
-        stat = stats[db]
-        result = get_item_id_from_wiki(stat.wiki)
-        if result:
-            item = wbi.item.get(result)
-        else:
-            item = wbi.item.new()
+    most_active_wikis = [r[0] for r in run_wiki_scanner_query("most_active_users")][:1000]
+    existing_wikis = db_fetch()
+    for db_name, prop in existing_wikis.items():
+        item = wbi.item.get(prop)
+        update_item_with_wiki_stats(wbi, item, stats[db_name])
+    for db_name in most_active_wikis:
+        if db_name in existing_wikis:
+            continue
+        stat = stats[db_name]
+        if stat.statistics.active_users < 10 or stat.statistics.articles < 100:
+            continue
+        item = wbi.item.new()
         update_item_with_wiki_stats(wbi, item, stat)
         if item.id is not None:
             insert_item_id_for_wiki(stat.wiki, item.id)

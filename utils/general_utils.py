@@ -31,16 +31,17 @@ class MirahezeWiki:
     url: str
     category: str
     language: str
+    creation_date: str
 
     @property
     def api_url(self):
         return self.url + "/w/api.php"
 
-    def to_sql_values(self) -> tuple[str, str, str, str, str]:
-        return self.db_name, self.site_name, self.url, self.category, self.language
+    def to_sql_values(self) -> tuple[str, str, str, str, str, str]:
+        return self.db_name, self.site_name, self.url, self.category, self.language, self.creation_date
 
     @classmethod
-    def from_sql_row(cls, row: tuple[str, str, str, str, str]) -> 'MirahezeWiki':
+    def from_sql_row(cls, row: tuple[str, str, str, str, str, str]) -> 'MirahezeWiki':
         return cls(*row)
 
     def __str__(self):
@@ -55,7 +56,7 @@ def fetch_all_mh_wikis_uncached(state: str = "active|public") -> list[MirahezeWi
         req = Request(meta(), parameters={
             "action": "query",
             "list": "wikidiscover",
-            "wdprop": "sitename|url|languagecode|category",
+            "wdprop": "sitename|url|languagecode|category|creationdate",
             "wdstate": state,
             "format": "json",
             "wdoffset": offset
@@ -68,7 +69,8 @@ def fetch_all_mh_wikis_uncached(state: str = "active|public") -> list[MirahezeWi
                 site_name=wiki_stats["sitename"],
                 url=wiki_stats["url"],
                 category=wiki_stats["category"],
-                language=wiki_stats["languagecode"],)
+                language=wiki_stats["languagecode"],
+                creation_date=wiki_stats["creationdate"],)
             )
         if len(wikis) < 500:
             break

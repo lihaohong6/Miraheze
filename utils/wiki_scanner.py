@@ -26,7 +26,8 @@ def create_tables():
     site_name VARCHAR(128) NOT NULL,
     url TEXT NOT NULL,
     category TEXT,
-    language TEXT
+    language TEXT,
+    creation_date TEXT
     )
     """)
     cursor.execute(f"""
@@ -37,7 +38,7 @@ def create_tables():
     conn.commit()
 
 
-def deserialize_miraheze_wikis(rows: list[tuple[str, str, str, str, str]]) -> list[MirahezeWiki]:
+def deserialize_miraheze_wikis(rows: list[tuple[str, str, str, str, str, str]]) -> list[MirahezeWiki]:
     return [MirahezeWiki.from_sql_row(row) for row in rows]
 
 
@@ -61,14 +62,14 @@ def fetch_all_mh_wikis(cache_expiry: timedelta = DEFAULT_CACHE_EXPIRY) -> list[M
         print("Fetching list of all wikis again due to cache expiry.")
         wikis = fetch_all_mh_wikis_uncached()
         data = [wiki.to_sql_values() for wiki in wikis]
-        cursor.executemany(f"INSERT OR REPLACE INTO all_wikis VALUES (?, ?, ?, ?, ?)", data)
+        cursor.executemany(f"INSERT OR REPLACE INTO all_wikis VALUES (?, ?, ?, ?, ?, ?)", data)
         cursor.execute(f"""
         INSERT OR REPLACE INTO {CACHE_EXPIRY_TABLE}
         VALUES (?, ?)
         """, ('all_wikis', int(datetime.now().timestamp())))
         conn.commit()
     cursor.execute(f"""
-    SELECT db_name, site_name, url, category, language FROM all_wikis
+    SELECT * FROM all_wikis
     """)
     rows = cursor.fetchall()
     assert len(rows) >= 500
