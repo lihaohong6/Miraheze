@@ -59,6 +59,21 @@ def list_wikis_by_active_users():
                 a.td(_t=str('-' if au_days == 30 else au_days))
     print(str(a))
 
+def list_wikis_by_creation_date():
+    a = Airium(base_indent="")
+    with a.table(klass="wikitable sortable"):
+        with a.tr():
+            a.th(_t="Name")
+            a.th(_t="Creation date")
+            a.th(_t="Active users")
+
+        for wiki in run_wiki_scanner_query("sort_by_creation_date"):
+            db, name, creation, au = wiki
+            with a.tr():
+                a.td(_t=get_wiki_name_column(db))
+                a.td(_t=creation)
+                a.td(_t=au)
+    print(str(a))
 
 if __name__ == '__main__':
-    list_wikis_by_article_count()
+    list_wikis_by_creation_date()
