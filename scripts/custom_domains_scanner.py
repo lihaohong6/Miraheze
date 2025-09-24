@@ -5,9 +5,9 @@ import requests
 
 from utils.general_utils import headers, get_logger
 
+logger = get_logger("ssl")
 
 def main():
-    logger = get_logger("ssl")
     r = requests.get("https://raw.githubusercontent.com/miraheze/ssl/refs/heads/main/wikidiscover_output.yaml")
     r.raise_for_status()
     text = r.text
@@ -20,21 +20,28 @@ def main():
             print(f"ERROR: {line} does not seem to contain a custom domain")
             continue
         url = re_match.group(1)
-        test_custom_domain(url, logger)
+        test_custom_domain(url)
         sleep(0.5)
 
 
-def test_custom_domain(url, logger, retry_cloudflare: int = 2) -> None:
+def test_custom_domain(url, retry_cloudflare: int = 2) -> None:
     try:
-        response = requests.get(url, headers=headers).text
+        response = requests.get(url, headers=headers)
+        response= response.text
     except Exception as e:
-        response = ""
+        error_text = str(e)
+        if "NameResolutionError" in e:
+            logger.error(f"{url} has expired: NameResolutionError")
+        else:
+            logger.error(f"{url} may have expired: {error_text}")
+        return
+
     if re.search(r"<body class=.*mediawiki ", response) is None:
         if "Cloudflare Access" in response or "grafana" in response.lower():
             if retry_cloudflare > 0:
                 logger.info("got cloudflared/grafanaed. Retrying...")
                 sleep((3 - retry_cloudflare) * 2)
-                test_custom_domain(url, logger, retry_cloudflare=retry_cloudflare - 1)
+                test_custom_domain(url, retry_cloudflare=retry_cloudflare - 1)
             else:
                 logger.error(f"got cloudflared twice for {url}")
             return
