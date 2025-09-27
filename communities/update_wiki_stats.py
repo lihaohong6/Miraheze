@@ -77,7 +77,6 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
     url = wiki.url
     item.labels.set('en', name)
     item.aliases.set('en', db_name)
-    item.aliases.set('en', url)
 
     if wiki.creation_date is not None:
         claim = datatypes.Time(prop_nr='P19', time="+" + wiki.creation_date.split('T')[0] + "T00:00:00Z")
