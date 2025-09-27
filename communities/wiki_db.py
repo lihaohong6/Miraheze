@@ -8,9 +8,9 @@ from wikibaseintegrator import WikibaseIntegrator
 from wikibaseintegrator.entities import BaseEntity
 from wikibaseintegrator.wbi_helpers import generate_entity_instances
 
-from communities.list_wikis import get_wiki_dict
 from utils.db_utils import make_conn, db_dir
 from utils.general_utils import MirahezeWiki
+from utils.wiki_scanner import fetch_all_mh_wikis
 
 communities_wiki_db = db_dir / "communities.sqlite"
 
@@ -86,6 +86,11 @@ def preload_items(titles: list[str], wbi: WikibaseIntegrator = None) -> Generato
         results = generate_entity_instances(chunk, allow_anonymous=False, login=wbi.login if wbi else None)
         for r in results:
             yield r
+
+
+@cache
+def get_wiki_dict() -> dict[str, MirahezeWiki]:
+    return dict((w.db_name, w) for w in fetch_all_mh_wikis())
 
 
 def update_local_db():

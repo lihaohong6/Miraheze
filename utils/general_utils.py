@@ -191,3 +191,17 @@ def save_json_page(page: Page | str, obj, summary: str = "update json page"):
     if original != modified:
         page.text = modified
         page.save(summary=summary)
+
+
+def throttle(seconds: float):
+    import time
+    def get_current_time_milli():
+        return round(time.time() * 1000)
+
+    prev: float | None = getattr(throttle, "prev", None)
+    if prev is not None:
+        wakeup_time = prev + seconds * 1000
+        sleep_seconds = (wakeup_time - get_current_time_milli()) / 1000
+        if sleep_seconds > 0:
+            time.sleep(sleep_seconds)
+    setattr(throttle, "prev", get_current_time_milli())

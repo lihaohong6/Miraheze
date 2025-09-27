@@ -1,14 +1,8 @@
-from functools import cache
-
 from airium import Airium
 
-from communities.wiki_list import get_item_id_from_wiki
-from utils.general_utils import MirahezeWiki
-from utils.wiki_scanner import fetch_all_mh_wikis, run_wiki_scanner_query
+from communities.wiki_db import get_item_id_from_wiki, get_wiki_dict
+from utils.wiki_scanner import run_wiki_scanner_query
 
-@cache
-def get_wiki_dict() -> dict[str, MirahezeWiki]:
-    return dict((w.db_name, w) for w in fetch_all_mh_wikis())
 
 def get_wiki_name_column(db: str) -> str:
     wiki = get_wiki_dict()[db]

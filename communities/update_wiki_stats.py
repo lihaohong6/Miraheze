@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 from functools import cache
 
@@ -8,8 +9,8 @@ from wikibaseintegrator.wbi_enums import ActionIfExists
 from wikibaseintegrator.wbi_helpers import search_entities
 
 from communities.bot_oauth import bot_passwords
-from communities.wiki_list import insert_item_id_for_wiki, db_fetch
-from utils.general_utils import user_agent, MirahezeWiki
+from communities.wiki_db import insert_item_id_for_wiki, db_fetch, preload_items
+from utils.general_utils import user_agent, MirahezeWiki, throttle
 from utils.wiki_scanner import fetch_all_mh_wikis, run_wiki_scanner_query
 from wiki_scanners.extension_statistics import get_wiki_extension_statistics, WikiExtensionStatistics
 from wiki_scanners.site_statistics import get_wiki_site_statistics, WikiSiteStatistics
@@ -72,6 +73,7 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
                                 wiki_stats: MirahezeWikiStats):
     if wiki_stats.wiki is None or wiki_stats.extensions is None or wiki_stats.statistics is None:
         return
+    original_item = item.get_json()
     wiki = wiki_stats.wiki
     db_name = wiki.db_name
     name = wiki.site_name
@@ -79,11 +81,12 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
     item.labels.set('en', name)
     aliases = item.aliases.get('en')
     if aliases is not None:
-        aliases = set(a.value for a in aliases if "https://" not in a)
+        aliases = [a.value for a in aliases if "https://" not in a]
     else:
-        aliases = set()
-    aliases.add(db_name)
-    item.aliases.set('en', list(aliases), action_if_exists=ActionIfExists.REPLACE_ALL)
+        aliases = []
+    if db_name not in aliases:
+        aliases.append(db_name)
+    item.aliases.set('en', aliases, action_if_exists=ActionIfExists.REPLACE_ALL)
 
     if wiki.creation_date is not None:
         claim = datatypes.Time(prop_nr='P19', time="+" + wiki.creation_date.split('T')[0] + "T00:00:00Z")
@@ -129,7 +132,12 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
         claim = datatypes.Quantity(prop_nr=k, amount=v)
         item.claims.add(claim)
 
+    # No modifications are made
+    if json.dumps(item.get_json(), sort_keys=True) == json.dumps(original_item, sort_keys=True):
+        return
+
     try:
+        throttle(0.5)
         item.write(is_bot=True)
     except Exception as e:
         print(e)
@@ -140,8 +148,10 @@ def update_site_statistics(wbi: WikibaseIntegrator):
     stats = get_all_stats()
     most_active_wikis = [r[0] for r in run_wiki_scanner_query("most_active_users")][:1000]
     existing_wikis = db_fetch()
-    for db_name, prop in existing_wikis.items():
-        item = wbi.item.get(prop)
+    item_id_to_db = dict((v, k) for k, v in existing_wikis.items())
+    for prop, item in preload_items(list(item_id_to_db.keys()), wbi=wbi):
+        item: ItemEntity
+        db_name = item_id_to_db[prop]
         update_item_with_wiki_stats(wbi, item, stats[db_name])
     for db_name in most_active_wikis:
         if db_name in existing_wikis:
