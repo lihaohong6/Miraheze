@@ -2,7 +2,6 @@ from functools import cache
 
 from airium import Airium
 
-from communities.update_wiki_stats import get_all_stats
 from communities.wiki_list import get_item_id_from_wiki
 from utils.general_utils import MirahezeWiki
 from utils.wiki_scanner import fetch_all_mh_wikis, run_wiki_scanner_query

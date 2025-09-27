@@ -1,5 +1,14 @@
 from functools import cache
+from typing import Generator
 
+from pywikibot import Site
+from pywikibot.pagegenerators import GeneratorFactory
+from wikibaseintegrator import WikibaseIntegrator
+
+from wikibaseintegrator.entities import BaseEntity
+from wikibaseintegrator.wbi_helpers import generate_entity_instances
+
+from communities.list_wikis import get_wiki_dict
 from utils.db_utils import make_conn, db_dir
 from utils.general_utils import MirahezeWiki
 
@@ -30,6 +39,7 @@ def db_fetch() -> dict[str, str]:
     cursor.execute(
     """
     SELECT db_name, property FROM communities
+    order by db_name desc 
     """
     )
     rows = cursor.fetchall()
@@ -53,10 +63,55 @@ def insert_item_id_for_wiki(wiki: MirahezeWiki, item_id: str) -> None:
     (wiki.db_name, wiki.site_name, item_id))
     conn.commit()
 
+def replace_wiki_list(wikis: list[tuple[MirahezeWiki, str]]):
+    db_init()
+    conn = get_communities_db_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+    DELETE FROM communities WHERE true;
+    """)
+    params = ((w[0].db_name, w[0].site_name, w[1]) for w in wikis)
+    cursor.executemany(
+        """
+        INSERT OR REPLACE INTO communities (db_name, wiki_name, property) values (?, ?, ?)
+        """,
+        params)
+    conn.commit()
+
+
+def preload_items(titles: list[str], wbi: WikibaseIntegrator = None) -> Generator[tuple[str, BaseEntity], None, None]:
+    size = 50
+    chunked = [titles[i:i + size] for i in range(0, len(titles), size)]
+    for chunk in chunked:
+        results = generate_entity_instances(chunk, allow_anonymous=False, login=wbi.login if wbi else None)
+        for r in results:
+            yield r
+
+
+def update_local_db():
+    mh_wikis = get_wiki_dict()
+    s = Site("communities")
+    gen = GeneratorFactory(s)
+    gen.handle_args(['-start:Item:!'])
+    gen = gen.getCombinedGenerator(preload=False)
+    titles = [page.title().split(":")[-1] for page in gen]
+    result: list[tuple[MirahezeWiki, str]] = []
+    for prop, item in preload_items(titles):
+        db_names = item.claims.get('P12')
+        if len(db_names) == 0:
+            continue
+        if len(db_names) > 1:
+            raise RuntimeError(f"Multiple DB names found for {prop}")
+        db_name = db_names[0].mainsnak.datavalue['value']
+        if db_name not in mh_wikis:
+            print(f"DB name {db_name} not found among list of MH wikis")
+            continue
+        result.append((mh_wikis[db_name], prop))
+    replace_wiki_list(result)
+
 
 def main():
-    db_fetch()
-    print(wiki_mapper)
+    update_local_db()
 
 if __name__ == '__main__':
     main()

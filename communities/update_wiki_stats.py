@@ -4,10 +4,11 @@ from functools import cache
 from wikibaseintegrator import wbi_login, WikibaseIntegrator, datatypes
 from wikibaseintegrator.entities import ItemEntity
 from wikibaseintegrator.wbi_config import config as wbi_config
+from wikibaseintegrator.wbi_enums import ActionIfExists
 from wikibaseintegrator.wbi_helpers import search_entities
 
 from communities.bot_oauth import bot_passwords
-from communities.wiki_list import get_item_id_from_wiki, insert_item_id_for_wiki, db_fetch
+from communities.wiki_list import insert_item_id_for_wiki, db_fetch
 from utils.general_utils import user_agent, MirahezeWiki
 from utils.wiki_scanner import fetch_all_mh_wikis, run_wiki_scanner_query
 from wiki_scanners.extension_statistics import get_wiki_extension_statistics, WikiExtensionStatistics
@@ -76,7 +77,13 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
     name = wiki.site_name
     url = wiki.url
     item.labels.set('en', name)
-    item.aliases.set('en', db_name)
+    aliases = item.aliases.get('en')
+    if aliases is not None:
+        aliases = set(a.value for a in aliases if "https://" not in a)
+    else:
+        aliases = set()
+    aliases.add(db_name)
+    item.aliases.set('en', list(aliases), action_if_exists=ActionIfExists.REPLACE_ALL)
 
     if wiki.creation_date is not None:
         claim = datatypes.Time(prop_nr='P19', time="+" + wiki.creation_date.split('T')[0] + "T00:00:00Z")
@@ -146,6 +153,7 @@ def update_site_statistics(wbi: WikibaseIntegrator):
         update_item_with_wiki_stats(wbi, item, stat)
         if item.id is not None:
             insert_item_id_for_wiki(stat.wiki, item.id)
+
 
 def main():
     wbi_config['MEDIAWIKI_API_URL'] = 'https://communities.miraheze.org/w/api.php'
