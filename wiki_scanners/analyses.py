@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import timedelta
 
 from utils.general_utils import MirahezeWiki, save_json_page
 from utils.wiki_scanner import fetch_all_mh_wikis
@@ -43,6 +44,12 @@ def save_statistics():
     result = get_most_popular_extensions_by_active_users()
     sort_dict(result)
     save_json_page("User:PetraMagnaBot/extensions_by_active_users.json", result)
+
+
+def force_update_all_statistics():
+    fetch_all_mh_wikis(cache_expiry=timedelta(hours=0))
+    get_wiki_extension_statistics(reset=True, read_only=False)
+    get_wiki_site_statistics(reset=True, read_only=False)
 
 
 def main():

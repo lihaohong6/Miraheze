@@ -1,4 +1,8 @@
+from typing import Callable
+
 from airium import Airium
+from pywikibot import Page, Site
+from wikitextparser import parse
 
 from communities.wiki_db import get_item_id_from_wiki, get_wiki_dict
 from utils.wiki_scanner import run_wiki_scanner_query
@@ -13,7 +17,8 @@ def get_wiki_name_column(db: str) -> str:
         item = f" ([[Item:{item_id}|{item_id}]])"
     return f"[[mh:{db[:-4]}|{wiki.site_name}]]{item}"
 
-def list_wikis_by_article_count():
+
+def list_wikis_by_article_count() -> str:
     a = Airium(base_indent="")
     with a.table(klass="wikitable sortable"):
         with a.tr():
@@ -27,9 +32,10 @@ def list_wikis_by_article_count():
                 a.td(_t=get_wiki_name_column(db))
                 a.td(_t=str(articles))
                 a.td(_t=str(pages))
-    print(str(a))
+    return str(a)
 
-def list_wikis_by_active_users():
+
+def list_wikis_by_active_users() -> str:
     a = Airium(base_indent="")
     with a.table(klass="wikitable sortable"):
         with a.tr():
@@ -50,9 +56,10 @@ def list_wikis_by_active_users():
                 else:
                     a.td(_t=str(active_users))
                 a.td(_t=str('-' if au_days == 30 else au_days))
-    print(str(a))
+    return str(a)
 
-def list_wikis_by_creation_date():
+
+def list_wikis_by_creation_date() -> str:
     a = Airium(base_indent="")
     with a.table(klass="wikitable sortable"):
         with a.tr():
@@ -66,7 +73,26 @@ def list_wikis_by_creation_date():
                 a.td(_t=get_wiki_name_column(db))
                 a.td(_t=creation)
                 a.td(_t=au)
-    print(str(a))
+    return str(a)
+
+
+def update_wiki_list_pages():
+    pages: dict[str, Callable[[], str]] = {
+        'List_of_wikis_by_active_users': list_wikis_by_active_users,
+        'List_of_wikis_by_article_count': list_wikis_by_article_count,
+        'List_of_wikis_by_creation_date': list_wikis_by_creation_date,
+    }
+    site = Site("communities")
+    for title, func in pages.items():
+        p = Page(site, title)
+        parsed = parse(p.text)
+        tables = parsed.get_tags('table')
+        assert len(tables) == 1, f"Found {len(tables)} tables in {title}"
+        table = tables[0]
+        table.string = func()
+        p.text = str(parsed)
+        p.save(summary="update wiki list")
+
 
 if __name__ == '__main__':
     list_wikis_by_creation_date()

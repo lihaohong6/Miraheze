@@ -146,7 +146,7 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
 
 def update_site_statistics(wbi: WikibaseIntegrator):
     stats = get_all_stats()
-    most_active_wikis = [r[0] for r in run_wiki_scanner_query("most_active_users")][:1000]
+    most_active_wikis = [r[0] for r in run_wiki_scanner_query("most_active_users")]
     existing_wikis = db_fetch()
     item_id_to_db = dict((v, k) for k, v in existing_wikis.items())
     for prop, item in preload_items(list(item_id_to_db.keys()), wbi=wbi):
@@ -165,7 +165,7 @@ def update_site_statistics(wbi: WikibaseIntegrator):
             insert_item_id_for_wiki(stat.wiki, item.id)
 
 
-def main():
+def update_all_wikibase_pages():
     wbi_config['MEDIAWIKI_API_URL'] = 'https://communities.miraheze.org/w/api.php'
     wbi_config['MEDIAWIKI_REST_URL'] = 'https://communities.miraheze.org/w/api.php'
     wbi_config['WIKIBASE_URL'] = ''
@@ -179,4 +179,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    update_all_wikibase_pages()
