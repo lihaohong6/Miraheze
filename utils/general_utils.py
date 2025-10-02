@@ -68,8 +68,12 @@ def fetch_all_mh_wikis_uncached(state: str = "public") -> list[MirahezeWiki]:
         for db_name, wiki_stats in wikis.items():
             states = []
             for possible_state in ["active", "inactive", "closed", "deleted"]:
-                if wiki_stats.get(possible_state, None) is not None:
+                if wiki_stats.get(possible_state, "a") == "":
                     states.append(possible_state)
+            if len(states) == 0 and wiki_stats.get('inactive', 'n') == 'exempt':
+                states.append("exempt")
+            if len(states) != 1:
+                print(f"{db_name} has the following states: {states}")
             results.append(MirahezeWiki(
                 db_name=db_name,
                 site_name=wiki_stats["sitename"],

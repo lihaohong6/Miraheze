@@ -135,8 +135,7 @@ def scan_wikis(mapper: Callable[[list[MirahezeWiki]], dict[str, T | None]],
 
 
 def main():
-    wikis = fetch_all_mh_wikis(cache_expiry=timedelta(days=0))
-    print(wikis)
+    fetch_all_mh_wikis(cache_expiry=timedelta(days=0))
 
 
 if __name__ == "__main__":

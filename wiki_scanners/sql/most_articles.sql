@@ -6,5 +6,4 @@ select all_wikis.db_name as db,
                          as pages
 from wiki_statistics
          join all_wikis on wiki_statistics.db_name = all_wikis.db_name
-where all_wikis.state like '%active'
 order by articles DESC;

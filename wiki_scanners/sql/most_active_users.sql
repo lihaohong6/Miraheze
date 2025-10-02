@@ -7,5 +7,4 @@ select all_wikis.db_name as db,
 from wiki_statistics
          join all_wikis on wiki_statistics.db_name = all_wikis.db_name
          join wiki_extensions on all_wikis.db_name = wiki_extensions.db_name
-where all_wikis.state like '%active'
 order by active_users DESC;
