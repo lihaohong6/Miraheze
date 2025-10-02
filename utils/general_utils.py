@@ -32,16 +32,18 @@ class MirahezeWiki:
     category: str
     language: str
     creation_date: str
+    # one of active, inactive, closed, deleted
+    state: str
 
     @property
     def api_url(self):
         return self.url + "/w/api.php"
 
-    def to_sql_values(self) -> tuple[str, str, str, str, str, str]:
-        return self.db_name, self.site_name, self.url, self.category, self.language, self.creation_date
+    def to_sql_values(self) -> tuple[str, str, str, str, str, str, str]:
+        return self.db_name, self.site_name, self.url, self.category, self.language, self.creation_date, self.state
 
     @classmethod
-    def from_sql_row(cls, row: tuple[str, str, str, str, str, str]) -> 'MirahezeWiki':
+    def from_sql_row(cls, row: tuple[str, str, str, str, str, str, str]) -> 'MirahezeWiki':
         return cls(*row)
 
     def __str__(self):
@@ -49,7 +51,7 @@ class MirahezeWiki:
 
 
 @cache
-def fetch_all_mh_wikis_uncached(state: str = "active|public") -> list[MirahezeWiki]:
+def fetch_all_mh_wikis_uncached(state: str = "public") -> list[MirahezeWiki]:
     results: list[MirahezeWiki] = []
     offset = 0
     while True:
@@ -64,13 +66,18 @@ def fetch_all_mh_wikis_uncached(state: str = "active|public") -> list[MirahezeWi
         response = req.submit()
         wikis: dict[str, dict] = response['query']['wikidiscover']['wikis']
         for db_name, wiki_stats in wikis.items():
+            states = []
+            for possible_state in ["active", "inactive", "closed", "deleted"]:
+                if wiki_stats.get(possible_state, None) is not None:
+                    states.append(possible_state)
             results.append(MirahezeWiki(
                 db_name=db_name,
                 site_name=wiki_stats["sitename"],
                 url=wiki_stats["url"],
                 category=wiki_stats["category"],
                 language=wiki_stats["languagecode"],
-                creation_date=wiki_stats["creationdate"],)
+                creation_date=wiki_stats["creationdate"],
+                state="|".join(states))
             )
         if len(wikis) < 500:
             break

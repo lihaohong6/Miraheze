@@ -1,13 +1,9 @@
 from functools import cache
-from typing import Generator
 
 from pywikibot import Site
 from pywikibot.pagegenerators import GeneratorFactory
-from wikibaseintegrator import WikibaseIntegrator
 
-from wikibaseintegrator.entities import BaseEntity
-from wikibaseintegrator.wbi_helpers import generate_entity_instances
-
+from communities.wbi_helper import preload_items
 from utils.db_utils import make_conn, db_dir
 from utils.general_utils import MirahezeWiki
 from utils.wiki_scanner import fetch_all_mh_wikis
@@ -77,15 +73,6 @@ def replace_wiki_list(wikis: list[tuple[MirahezeWiki, str]]):
         """,
         params)
     conn.commit()
-
-
-def preload_items(titles: list[str], wbi: WikibaseIntegrator = None) -> Generator[tuple[str, BaseEntity], None, None]:
-    size = 50
-    chunked = [titles[i:i + size] for i in range(0, len(titles), size)]
-    for chunk in chunked:
-        results = generate_entity_instances(chunk, allow_anonymous=False, login=wbi.login if wbi else None)
-        for r in results:
-            yield r
 
 
 @cache

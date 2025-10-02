@@ -2,15 +2,14 @@ import json
 from dataclasses import dataclass
 from functools import cache
 
-from wikibaseintegrator import wbi_login, WikibaseIntegrator, datatypes
+from wikibaseintegrator import WikibaseIntegrator, datatypes
 from wikibaseintegrator.entities import ItemEntity
-from wikibaseintegrator.wbi_config import config as wbi_config
 from wikibaseintegrator.wbi_enums import ActionIfExists
 from wikibaseintegrator.wbi_helpers import search_entities
 
-from communities.bot_oauth import bot_passwords
-from communities.wiki_db import insert_item_id_for_wiki, db_fetch, preload_items
-from utils.general_utils import user_agent, MirahezeWiki, throttle
+from communities.wiki_db import insert_item_id_for_wiki, db_fetch
+from communities.wbi_helper import preload_items, get_wbi
+from utils.general_utils import MirahezeWiki, throttle
 from utils.wiki_scanner import fetch_all_mh_wikis, run_wiki_scanner_query
 from wiki_scanners.extension_statistics import get_wiki_extension_statistics, WikiExtensionStatistics
 from wiki_scanners.site_statistics import get_wiki_site_statistics, WikiSiteStatistics
@@ -94,7 +93,8 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
 
     string_claims = {
         'P12': db_name,
-        'P15': wiki.language
+        'P15': wiki.language,
+        'P20': wiki.state
     }
 
     for k, v in string_claims.items():
@@ -157,7 +157,7 @@ def update_site_statistics(wbi: WikibaseIntegrator):
         if db_name in existing_wikis:
             continue
         stat = stats[db_name]
-        if stat.statistics.active_users < 10 or stat.statistics.articles < 100:
+        if stat.statistics is None or stat.statistics.active_users < 10 or stat.statistics.articles < 100:
             continue
         item = wbi.item.new()
         update_item_with_wiki_stats(wbi, item, stat)
@@ -166,15 +166,7 @@ def update_site_statistics(wbi: WikibaseIntegrator):
 
 
 def update_all_wikibase_pages():
-    wbi_config['MEDIAWIKI_API_URL'] = 'https://communities.miraheze.org/w/api.php'
-    wbi_config['MEDIAWIKI_REST_URL'] = 'https://communities.miraheze.org/w/api.php'
-    wbi_config['WIKIBASE_URL'] = ''
-    wbi_config['USER_AGENT'] = user_agent
-    login_instance = wbi_login.Login(
-        user=bot_passwords[0],
-        password=bot_passwords[1],
-        user_agent=user_agent)
-    wbi = WikibaseIntegrator(login=login_instance)
+    wbi = get_wbi()
     update_site_statistics(wbi=wbi)
 
 

@@ -58,6 +58,7 @@ def get_wiki_extension_statistics(reset: bool = False, read_only: bool = False) 
                      read_only=read_only)
     for k, v in res.items():
         if isinstance(v, dict):
+            v.pop('py/object', '')
             res[k] = WikiExtensionStatistics(**v)
     return res
 

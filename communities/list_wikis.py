@@ -95,4 +95,4 @@ def update_wiki_list_pages():
 
 
 if __name__ == '__main__':
-    list_wikis_by_creation_date()
+    update_wiki_list_pages()

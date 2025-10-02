@@ -5,5 +5,5 @@ select all_wikis.db_name as db,
 from all_wikis
          join wiki_statistics ws on ws.db_name = all_wikis.db_name
          join wiki_extensions on all_wikis.db_name = wiki_extensions.db_name
-where au > 10 and creation_date is not NULL
+where au > 10 and creation_date is not NULL and all_wikis.state like '%active'
 order by creation_date;

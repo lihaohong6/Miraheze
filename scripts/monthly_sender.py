@@ -26,14 +26,14 @@ def main():
     parser.add_argument("-p", "--page",
                         type=str,
                         help="Subscription page",
-                        default="User:Raidarr/Miraheze_Monthly/subscriptions")
+                        default="Miraheze_Monthly/subscriptions")
     parser.add_argument("-d", "--date",
                         type=str,
                         required=True,
                         help="Format: January 2025")
     parser.add_argument("-s", "--summary",
                         type=str,
-                        default="Automated delivery of [[User:Raidarr/Miraheze Monthly|Miraheze Monthly]]")
+                        default="Automated delivery of [[Miraheze Monthly]]")
     args = parser.parse_args()
     subscribers_page = Page(meta(), args.page)
     deliver_to_talk_page(subscribers_page, date=args.date, summary=args.summary)
@@ -57,8 +57,8 @@ def deliver_to_talk_page(page: Page, date: str, summary: str) -> None:
     for p in talk_pages:
         if p.namespace().id != 3:
             print(f"Warning: {p.title()} is not in user talk NS.")
-    text = f"""==Miraheze Monthly - [[User:Raidarr/Miraheze Monthly/{date}|{date} issue]]==
-{{{{:User:Raidarr/Miraheze Monthly/{date}}}}}
+    text = f"""==Miraheze Monthly - [[Miraheze Monthly/{date}|{date} issue]]==
+{{{{:Miraheze Monthly/{date}}}}}
 <div style="text-align: right"><span style="display: none">[[User:%s]]</span>Delivered by ~~~~</div>"""
     for page in talk_pages:
         if page.text.strip() != "":
