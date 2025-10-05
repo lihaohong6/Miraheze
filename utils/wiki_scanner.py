@@ -117,6 +117,8 @@ def scan_wikis(mapper: Callable[[list[MirahezeWiki]], dict[str, T | None]],
             WHERE db_name NOT IN (SELECT db_name FROM {table_name})
             """)
             wikis = deserialize_miraheze_wikis(cursor.fetchall())
+        # These wikis won't see any stat changes
+        wikis = [w for w in wikis if w.state not in {"closed", "deleted"}]
         wiki_chunks = chunk_list(wikis, batch_size)
         for wiki_chunk in wiki_chunks:
             result = mapper(wiki_chunk)

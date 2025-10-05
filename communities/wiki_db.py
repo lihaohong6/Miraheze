@@ -75,7 +75,6 @@ def replace_wiki_list(wikis: list[tuple[MirahezeWiki, str]]):
     conn.commit()
 
 
-@cache
 def get_wiki_dict() -> dict[str, MirahezeWiki]:
     return dict((w.db_name, w) for w in fetch_all_mh_wikis())
 

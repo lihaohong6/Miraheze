@@ -8,8 +8,11 @@ from communities.wiki_db import get_item_id_from_wiki, get_wiki_dict
 from utils.wiki_scanner import run_wiki_scanner_query
 
 
+wiki_dict = get_wiki_dict()
+
+
 def get_wiki_name_column(db: str) -> str:
-    wiki = get_wiki_dict()[db]
+    wiki = wiki_dict[db]
     item_id = get_item_id_from_wiki(wiki)
     if item_id is None:
         item = ""
@@ -19,20 +22,7 @@ def get_wiki_name_column(db: str) -> str:
 
 
 def list_wikis_by_article_count() -> str:
-    a = Airium(base_indent="")
-    with a.table(klass="wikitable sortable"):
-        with a.tr():
-            a.th(_t="Name")
-            a.th(_t="Article count")
-            a.th(_t="Page count")
-
-        for wiki in run_wiki_scanner_query("most_articles")[:500]:
-            db, name, articles, pages = wiki
-            with a.tr():
-                a.td(_t=get_wiki_name_column(db))
-                a.td(_t=str(articles))
-                a.td(_t=str(pages))
-    return str(a)
+    return generate_table('most_articles', ['ac', 'pc'], limit=500)
 
 
 def list_wikis_by_active_users() -> str:
@@ -60,20 +50,43 @@ def list_wikis_by_active_users() -> str:
 
 
 def list_wikis_by_creation_date() -> str:
+    return generate_table("sort_by_creation_date", ['cd', 'au'])
+
+
+def generate_table(sql_query: str, fields: list[str], limit: int = None) -> str:
+    mapping = {
+        'cd': 'Creation date',
+        'ac': 'Article count',
+        'pc': 'Page count',
+        'au': 'Active users',
+        'status': 'Status'
+    }
     a = Airium(base_indent="")
     with a.table(klass="wikitable sortable"):
         with a.tr():
             a.th(_t="Name")
-            a.th(_t="Creation date")
-            a.th(_t="Active users")
+            for f in fields:
+                a.th(_t=mapping.get(f, ""))
 
-        for wiki in run_wiki_scanner_query("sort_by_creation_date"):
-            db, name, creation, au = wiki
+        wikis = run_wiki_scanner_query(sql_query)
+        if limit:
+            wikis = wikis[:limit]
+        for wiki in wikis:
+            db = wiki[0]
+            lst = wiki[2:]
             with a.tr():
                 a.td(_t=get_wiki_name_column(db))
-                a.td(_t=creation)
-                a.td(_t=au)
+                for value in lst:
+                    a.td(_t=str(value))
     return str(a)
+
+
+def list_inactive_wikis():
+    return generate_table("inactive_wikis", ['ac', 'pc'])
+
+
+def list_exempt_wikis():
+    return generate_table("exempt_wikis", ['au', 'ac', 'pc'])
 
 
 def update_wiki_list_pages():
@@ -81,6 +94,8 @@ def update_wiki_list_pages():
         'List_of_wikis_by_active_users': list_wikis_by_active_users,
         'List_of_wikis_by_article_count': list_wikis_by_article_count,
         'List_of_wikis_by_creation_date': list_wikis_by_creation_date,
+        'List_of_inactive_wikis': list_inactive_wikis,
+        'List_of_exempt_wikis': list_exempt_wikis,
     }
     site = Site("communities")
     for title, func in pages.items():
