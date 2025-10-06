@@ -24,6 +24,14 @@ def meta():
     return Site(code="meta")
 
 
+class WikiState(enum.Enum):
+    ACTIVE = "active"
+    EXEMPT = "exempt"
+    INACTIVE = "inactive"
+    CLOSED = "closed"
+    DELETED = "deleted"
+
+
 @dataclass
 class MirahezeWiki:
     db_name: str

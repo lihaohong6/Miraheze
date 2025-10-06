@@ -11,7 +11,7 @@ class WikiSiteStatistics:
     pages: int
     articles: int
     edits: int
-    images: int
+    files: int
     users: int
     active_users: int
 
@@ -30,7 +30,7 @@ def fetch_wiki_site_statistics(wikis: list[MirahezeWiki]) -> dict[str, WikiSiteS
             pages=r['pages'],
             articles=r['articles'],
             edits=r['edits'],
-            images=r['images'],
+            files=r['images'],
             users=r['users'],
             active_users=r['activeusers'],
         )

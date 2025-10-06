@@ -123,7 +123,7 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
         'P3': statistics.pages,
         'P4': statistics.articles,
         'P5': statistics.edits,
-        'P6': statistics.images,
+        'P6': statistics.files,
         'P7': statistics.users,
         'P8': statistics.active_users,
     }
