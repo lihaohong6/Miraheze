@@ -2,6 +2,7 @@ import json
 import sys
 from dataclasses import dataclass
 from functools import cache
+from typing import Any
 
 from wikibaseintegrator import WikibaseIntegrator, datatypes
 from wikibaseintegrator.entities import ItemEntity
@@ -112,13 +113,9 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
     url_claims = {
         'P11': url
     }
-    logo: str | None = settings.get('wgLogo', None)
-    if logo is not None:
-        if logo.startswith('//'):
-            logo = "https:" + logo
-        import validators
-        if validators.url(logo):
-            url_claims['P21'] = logo
+    logo = get_wiki_logo_image_url(settings)
+    if logo:
+        url_claims['P21'] = logo
     for k, v in url_claims.items():
         claim = datatypes.URL(prop_nr=k, value=v)
         item.claims.add(claim)
@@ -161,6 +158,23 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
     except Exception as e:
         print(e)
         print(f"Failed to update for {wiki.db_name} ({wiki.site_name})")
+
+
+def get_wiki_logo_image_url(settings: dict[str, Any]) -> str | None:
+    import validators
+    logo_candidates: list[str | None] = [
+        settings.get('wgLogo', None),
+        settings.get('wgWordmark', None),
+        settings.get('wgTimelessLogo', None)
+    ]
+    for logo in logo_candidates:
+        if not logo:
+            continue
+        if logo.startswith('//'):
+            logo = "https:" + logo
+        if validators.url(logo):
+            return logo
+    return None
 
 
 def update_site_statistics(wbi: WikibaseIntegrator):
