@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import TypeVar, Any
 
 import requests
 
@@ -10,7 +10,7 @@ from utils.wiki_scanner import scan_wikis
 
 @dataclass
 class WikiExtensionStatistics:
-    settings: dict
+    settings: dict[str, Any]
     extensions: list[str]
 
 

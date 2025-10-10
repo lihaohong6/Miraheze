@@ -75,6 +75,7 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
         return
     original_item = item.get_json()
     wiki = wiki_stats.wiki
+    settings = wiki_stats.extensions.settings
     db_name = wiki.db_name
     name = wiki.site_name
     url = wiki.url
@@ -95,15 +96,32 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
     string_claims = {
         'P12': db_name,
         'P15': wiki.language,
-        'P20': wiki.state
+        'P20': wiki.state,
     }
+    wiki_license: str | None = settings.get('wmgWikiLicense', None)
+    if wiki_license is not None:
+        string_claims['P22'] = wiki_license
+    default_skin: str | None = settings.get('wgDefaultSkin', None)
+    if default_skin is not None:
+        string_claims['P23'] = default_skin
 
     for k, v in string_claims.items():
         claim = datatypes.String(prop_nr=k, value=v)
         item.claims.add(claim)
 
-    claim_url = datatypes.URL(prop_nr='P11', value=url)
-    item.claims.add(claim_url)
+    url_claims = {
+        'P11': url
+    }
+    logo: str | None = settings.get('wgLogo', None)
+    if logo is not None:
+        if logo.startswith('//'):
+            logo = "https:" + logo
+        import validators
+        if validators.url(logo):
+            url_claims['P21'] = logo
+    for k, v in url_claims.items():
+        claim = datatypes.URL(prop_nr=k, value=v)
+        item.claims.add(claim)
 
     item_claims: dict[str, str | int] = {
         # always of type wiki

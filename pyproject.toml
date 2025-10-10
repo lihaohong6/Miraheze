@@ -14,6 +14,7 @@ dependencies = [
     "mwoauth>=0.4.0",
     "pywikibot>=10.3.0",
     "requests>=2.32.3",
+    "validators>=0.35.0",
     "waybackpack>=0.6.4",
     "wikibaseintegrator>=0.12.14",
     "wikitextparser>=0.56.4",
