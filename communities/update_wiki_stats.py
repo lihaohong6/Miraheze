@@ -1,4 +1,5 @@
 import json
+import sys
 from dataclasses import dataclass
 from functools import cache
 
@@ -153,12 +154,16 @@ def update_site_statistics(wbi: WikibaseIntegrator):
         item: ItemEntity
         db_name = item_id_to_db[prop]
         update_item_with_wiki_stats(wbi, item, stats[db_name])
+    pending_creation: list[MirahezeWikiStats] = []
     for db_name in most_active_wikis:
         if db_name in existing_wikis:
             continue
         stat = stats[db_name]
         if stat.statistics is None or stat.statistics.active_users < 10 or stat.statistics.articles < 100:
             continue
+        pending_creation.append(stat)
+    assert len(pending_creation) <= 100, f"Too many page creations: {pending_creation}. Something is wrong."
+    for stat in pending_creation:
         item = wbi.item.new()
         update_item_with_wiki_stats(wbi, item, stat)
         if item.id is not None:
@@ -170,5 +175,15 @@ def update_all_wikibase_pages():
     update_site_statistics(wbi=wbi)
 
 
+def manually_trigger_creation(db_name: str = None):
+    if db_name is None:
+        return
+    wbi = get_wbi()
+    update_item_with_wiki_stats(wbi=wbi, item=wbi.item.new(), wiki_stats=get_all_stats()[db_name])
+
+
 if __name__ == '__main__':
-    update_all_wikibase_pages()
+    if len(sys.argv) > 1:
+        manually_trigger_creation(sys.argv[1])
+    else:
+        update_all_wikibase_pages()

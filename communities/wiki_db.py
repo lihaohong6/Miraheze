@@ -94,6 +94,8 @@ def update_local_db():
         if len(db_names) > 1:
             raise RuntimeError(f"Multiple DB names found for {prop}")
         db_name = db_names[0].mainsnak.datavalue['value']
+        if 'wiki' not in db_name:
+            db_names += 'wiki'
         if db_name not in mh_wikis:
             print(f"DB name {db_name} not found among list of MH wikis")
             continue
