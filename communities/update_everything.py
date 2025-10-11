@@ -6,8 +6,8 @@ from wiki_scanners.analyses import force_update_all_statistics
 
 
 def main():
-    update_local_db()
     force_update_all_statistics()
+    update_local_db()
     update_all_wikibase_pages()
     update_wiki_list_pages()
     rank_wikis()
