@@ -5,6 +5,7 @@ from airium import Airium
 from bs4 import BeautifulSoup
 from fontTools.misc.cython import returns
 from pywikibot import Page, Site
+from pywikibot.pagegenerators import PreloadingGenerator
 from wikitextparser import parse
 
 from communities.wiki_db import get_item_id_from_wiki, get_wiki_dict
@@ -13,6 +14,7 @@ from utils.wiki_scanner import run_wiki_scanner_query, fetch_all_mh_wikis
 
 wiki_dict = get_wiki_dict()
 
+TABLE_CLASSES = "wikitable sortable mw-collapsible mw-collapsed"
 
 def get_wiki_name_column(db: str) -> str:
     wiki = wiki_dict[db]
@@ -25,12 +27,12 @@ def get_wiki_name_column(db: str) -> str:
 
 
 def list_wikis_by_article_count() -> str:
-    return generate_table('most_articles', ['ac', 'pc'], limit=300)
+    return generate_wiki_list_table('most_articles', ['ac', 'pc'], limit=300)
 
 
 def list_wikis_by_active_users() -> str:
     a = Airium(base_indent="")
-    with a.table(klass="wikitable sortable"):
+    with a.table(klass=TABLE_CLASSES):
         with a.tr():
             a.th(_t="Name")
             a.th(_t="Active users")
@@ -53,25 +55,27 @@ def list_wikis_by_active_users() -> str:
 
 
 def list_wikis_by_creation_date() -> str:
-    return generate_table("sort_by_creation_date", ['cd', 'au'])
+    return generate_wiki_list_table("sort_by_creation_date", ['cd', 'au'])
 
 
-def generate_table(sql_query: str, fields: list[str], limit: int = None) -> str:
+def generate_wiki_list_table(sql_query: str, fields: list[str] = None, limit: int = None) -> str:
     mapping = {
         'cd': 'Creation date',
         'ac': 'Article count',
         'pc': 'Page count',
         'au': 'Active users',
-        'status': 'Status'
     }
+    descriptions = []
+    wikis = run_wiki_scanner_query(sql_query, descriptions)
+    if fields is None:
+        assert len(descriptions) > 0
+        fields = descriptions[2:]
     a = Airium(base_indent="")
-    with a.table(klass="wikitable sortable"):
+    with a.table(klass=TABLE_CLASSES):
         with a.tr():
             a.th(_t="Name")
             for f in fields:
-                a.th(_t=mapping.get(f, ""))
-
-        wikis = run_wiki_scanner_query(sql_query)
+                a.th(_t=mapping.get(f, f.capitalize()))
         if limit:
             wikis = wikis[:limit]
         for wiki in wikis:
@@ -85,11 +89,11 @@ def generate_table(sql_query: str, fields: list[str], limit: int = None) -> str:
 
 
 def list_inactive_wikis():
-    return generate_table("inactive_wikis", ['ac', 'pc'])
+    return generate_wiki_list_table("inactive_wikis", ['ac', 'pc'])
 
 
 def list_exempt_wikis():
-    return generate_table("exempt_wikis", ['au', 'ac', 'pc'])
+    return generate_wiki_list_table("exempt_wikis", ['au', 'ac', 'pc'])
 
 
 def list_wikis_by_meta_referrals():
@@ -123,24 +127,35 @@ def list_wikis_by_meta_referrals():
     return str(a)
 
 
+def list_all_wikis():
+    return generate_wiki_list_table("wiki_statistics")
+
+
 def update_wiki_list_pages():
     pages: dict[str, Callable[[], str]] = {
         'List_of_wikis_by_active_users': list_wikis_by_active_users,
         'List_of_wikis_by_article_count': list_wikis_by_article_count,
         'List_of_wikis_by_creation_date': list_wikis_by_creation_date,
+        'List_of_all_wikis': list_all_wikis,
         'List_of_inactive_wikis': list_inactive_wikis,
         'List_of_exempt_wikis': list_exempt_wikis,
         'List_of_wikis_by_Meta_referrals': list_wikis_by_meta_referrals
     }
     site = Site("communities")
-    for title, func in pages.items():
-        p = Page(site, title)
+    gen = PreloadingGenerator(Page(site, title) for title in pages.keys())
+    for p in gen:
+        title = p.title(underscore=True)
+        assert title in pages
+        func = pages[title]
         parsed = parse(p.text)
         tables = parsed.get_tags('table')
         assert len(tables) == 1, f"Found {len(tables)} tables in {title}"
         table = tables[0]
         table.string = func()
-        p.text = str(parsed)
+        result = str(parsed)
+        if p.text.strip() == result:
+            continue
+        p.text = result
         p.save(summary="update wiki list")
 
 

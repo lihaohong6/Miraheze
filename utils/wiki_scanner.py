@@ -84,13 +84,15 @@ def chunk_list(lst: list, k: int) -> list[list]:
 T = TypeVar("T")
 
 
-def run_wiki_scanner_query(file_name: str) -> list[tuple]:
+def run_wiki_scanner_query(file_name: str, descriptions: list[str] = None) -> list[tuple]:
     sql_files_root = Path("wiki_scanners/sql")
     file = sql_files_root / (file_name + ".sql")
     assert file.exists() and file.is_file()
     with open(file, "r", encoding="utf-8") as f:
         sql = f.read()
     cursor = get_conn(db_name).execute(sql)
+    if descriptions is not None:
+        descriptions.extend(d[0] for d in cursor.description)
     return cursor.fetchall()
 
 
