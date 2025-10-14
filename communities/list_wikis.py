@@ -2,8 +2,6 @@ from typing import Callable
 
 import requests
 from airium import Airium
-from bs4 import BeautifulSoup
-from fontTools.misc.cython import returns
 from pywikibot import Page, Site
 from pywikibot.pagegenerators import PreloadingGenerator
 from wikitextparser import parse
@@ -12,11 +10,14 @@ from communities.wiki_db import get_item_id_from_wiki, get_wiki_dict
 from utils.general_utils import headers
 from utils.wiki_scanner import run_wiki_scanner_query, fetch_all_mh_wikis
 
-wiki_dict = get_wiki_dict()
+wiki_dict = None
 
 TABLE_CLASSES = "wikitable sortable mw-collapsible mw-collapsed"
 
 def get_wiki_name_column(db: str) -> str:
+    global wiki_dict
+    if wiki_dict is None:
+        wiki_dict = get_wiki_dict()
     wiki = wiki_dict[db]
     item_id = get_item_id_from_wiki(wiki)
     if item_id is None:

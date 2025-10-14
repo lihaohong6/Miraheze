@@ -2,7 +2,7 @@ from functools import cache
 from typing import Generator
 
 from wikibaseintegrator import WikibaseIntegrator, wbi_login
-from wikibaseintegrator.entities import BaseEntity
+from wikibaseintegrator.entities import BaseEntity, ItemEntity
 from wikibaseintegrator.wbi_config import config as wbi_config
 from wikibaseintegrator.wbi_helpers import generate_entity_instances
 
@@ -24,8 +24,8 @@ def get_wbi():
     return wbi
 
 
-def preload_items(titles: list[str], wbi: WikibaseIntegrator = get_wbi()) -> Generator[
-    tuple[str, BaseEntity], None, None]:
+def preload_items(titles: list[str],
+                  wbi: WikibaseIntegrator = get_wbi()) -> Generator[tuple[str, ItemEntity], None, None]:
     size = 50
     chunked = [titles[i:i + size] for i in range(0, len(titles), size)]
     for chunk in chunked:
@@ -35,4 +35,5 @@ def preload_items(titles: list[str], wbi: WikibaseIntegrator = get_wbi()) -> Gen
             login=wbi.login,
             user_agent=user_agent)
         for r in results:
+            r: tuple[str, ItemEntity]
             yield r
