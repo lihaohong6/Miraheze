@@ -134,6 +134,18 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
         claim = datatypes.Item(prop_nr=k, value=v)
         item.claims.add(claim)
 
+    # Wiki topic
+    classifications = [c.mainsnak.datavalue['value']['id'] for c in item.claims.get('P14')]
+    value = 1108
+    # countryball wiki
+    if "Q1107" in classifications:
+        value = 1111
+    # reception wiki
+    if "Q1106" in classifications:
+        value = 1112
+    claim = datatypes.Item(prop_nr='P24', value=value)
+    item.claims.add(claim, action_if_exists=ActionIfExists.KEEP)
+
     statistics = wiki_stats.statistics
     quantity_claims = {
         'P3': statistics.pages,
