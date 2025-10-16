@@ -132,6 +132,33 @@ def list_all_wikis():
     return generate_wiki_list_table("wiki_statistics")
 
 
+def generate_extension_list_table(sql_query: str, labels: list[str] = None) -> str:
+    descriptions = []
+    result = run_wiki_scanner_query(sql_query, descriptions)
+    if labels is None:
+        assert len(descriptions) > 0
+        labels = descriptions
+    a = Airium(base_indent="")
+    with a.table(klass="wikitable"):
+        with a.tr():
+            for label in labels:
+                a.td(_t=label)
+
+        for row in result:
+            with a.tr():
+                for data in row:
+                    a.td(_t=str(data))
+    return str(a)
+
+
+def list_extensions_by_popularity():
+    return generate_extension_list_table("popular_extensions", labels=['Name', 'Wikis using', 'Active users of wikis using'])
+
+
+def list_skins_by_popularity():
+    return generate_extension_list_table("popular_skins", labels=['Name', 'Default wikis', 'Active users of default wikis'])
+
+
 def update_wiki_list_pages():
     pages: dict[str, Callable[[], str]] = {
         'List_of_wikis_by_active_users': list_wikis_by_active_users,
@@ -140,7 +167,9 @@ def update_wiki_list_pages():
         'List_of_all_wikis': list_all_wikis,
         'List_of_inactive_wikis': list_inactive_wikis,
         'List_of_exempt_wikis': list_exempt_wikis,
-        'List_of_wikis_by_Meta_referrals': list_wikis_by_meta_referrals
+        'List_of_wikis_by_Meta_referrals': list_wikis_by_meta_referrals,
+        "List_of_extensions_by_popularity": list_extensions_by_popularity,
+        "List_of_skins_by_popularity": list_skins_by_popularity,
     }
     site = Site("communities")
     gen = PreloadingGenerator(Page(site, title) for title in pages.keys())
