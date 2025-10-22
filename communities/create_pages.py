@@ -7,7 +7,7 @@ from utils.general_utils import throttle
 
 TEMPLATE_TEXT = """{{Wiki top}}
 {{InfoboxWiki}}
-'''{{subst:PAGENAME}}''' is a Miraheze wiki.
+'''{{subst:PAGENAME}}''' is a {{subst:#language:{{subst:#property:P15}}|en}} wiki created on {{subst:#property:P19}}.
 {{Wiki bottom}}"""
 
 
@@ -21,7 +21,7 @@ def create_missing_main_pages():
     wbi = get_wbi()
 
     # get top 100 by active users
-    top_wikis = [r[0] for r in run_wiki_scanner_query("most_active_users")[:20]]
+    top_wikis = [r[0] for r in run_wiki_scanner_query("most_active_users")[:100]]
     db_to_item = db_fetch()
     item_to_db = {v: k for k, v in db_to_item.items()}
 

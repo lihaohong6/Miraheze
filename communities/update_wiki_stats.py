@@ -39,6 +39,8 @@ def find_entity_by_exact_label(label: str, entity_type: str = 'item') -> str | N
     exact_matches = []
     for result in results:
         label_candidates: list[str] = [result['label'].lower()]
+        if "topic" in label_candidates[0]:
+            continue
         aliases = result.get('aliases', [])
         if aliases:
             label_candidates.extend(alias.lower() for alias in aliases)

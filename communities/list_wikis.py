@@ -139,10 +139,10 @@ def generate_extension_list_table(sql_query: str, labels: list[str] = None) -> s
         assert len(descriptions) > 0
         labels = descriptions
     a = Airium(base_indent="")
-    with a.table(klass="wikitable"):
+    with a.table(klass="wikitable sortable"):
         with a.tr():
             for label in labels:
-                a.td(_t=label)
+                a.th(_t=label)
 
         for row in result:
             with a.tr():
