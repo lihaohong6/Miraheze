@@ -5,6 +5,10 @@ from communities.wiki_db import db_fetch
 from utils.wiki_scanner import run_wiki_scanner_query
 from utils.general_utils import throttle
 
+PAGE_INITIAL = """{{Wiki top}}
+{{InfoboxWiki}}
+{{Wiki bottom}}"""
+
 TEMPLATE_TEXT = """{{Wiki top}}
 {{InfoboxWiki}}
 '''{{subst:PAGENAME}}''' is a {{subst:#language:{{subst:#property:P15}}|en}} wiki created on {{subst:#property:P19}}.
@@ -28,7 +32,9 @@ def create_missing_main_pages():
     # preload all corresponding items
     for item_id, item in preload_items(list(item_to_db.keys()), wbi=wbi):
         db = item_to_db[item_id]
-        if db not in top_wikis:
+        topics = [c.mainsnak.datavalue['value']['id']
+                  for c in item.claims.get('P24')]
+        if len(topics) == 0 or (len(topics) == 1 and topics[0] == 'Q1108'):
             continue
 
         label = item.labels.get("en")
@@ -46,7 +52,7 @@ def create_missing_main_pages():
         page = Page(site, label)
         if not page.exists():
             print(f"Will create {page.title()}")
-            page.text = TEMPLATE_TEXT
+            page.text = PAGE_INITIAL
             page.save(summary="Create wiki page from Wikibase item", bot=False)
 
         # connect the new page as sitelink
@@ -55,6 +61,8 @@ def create_missing_main_pages():
             throttle(2)
             item.write(summary="Add sitelink", is_bot=True)
             print(f"Linked {label}")
+            page.text = TEMPLATE_TEXT
+            page.save(summary="Add wiki page description")
         except Exception as e:
             print(f"Failed to add sitelink for {label}: {e}")
 

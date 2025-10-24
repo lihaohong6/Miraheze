@@ -159,19 +159,28 @@ def list_skins_by_popularity():
     return generate_extension_list_table("popular_skins", labels=['Name', 'Default wikis', 'Active users of default wikis'])
 
 
+def list_wikis_by_default_skin():
+    return generate_wiki_list_table("wiki_skins")
+
+
 def update_wiki_list_pages():
     pages: dict[str, Callable[[], str]] = {
         'List_of_wikis_by_active_users': list_wikis_by_active_users,
         'List_of_wikis_by_article_count': list_wikis_by_article_count,
         'List_of_wikis_by_creation_date': list_wikis_by_creation_date,
+        'List_of_wikis_by_Meta_referrals': list_wikis_by_meta_referrals,
+
+        'List_of_wikis_by_default_skin': list_wikis_by_default_skin,
+
         'List_of_all_wikis': list_all_wikis,
         'List_of_inactive_wikis': list_inactive_wikis,
         'List_of_exempt_wikis': list_exempt_wikis,
-        'List_of_wikis_by_Meta_referrals': list_wikis_by_meta_referrals,
+
         "List_of_extensions_by_popularity": list_extensions_by_popularity,
         "List_of_skins_by_popularity": list_skins_by_popularity,
     }
     site = Site("communities")
+    site.login()
     gen = PreloadingGenerator(Page(site, title) for title in pages.keys())
     for p in gen:
         title = p.title(underscore=True)
