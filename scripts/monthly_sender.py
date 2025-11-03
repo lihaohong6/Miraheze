@@ -52,13 +52,15 @@ def print_pings(page: Page) -> None:
 
 
 def deliver_to_talk_page(page: Page, date: str, summary: str) -> None:
+    link_target = f"Miraheze_Monthly/{date}"
+    assert Page(meta(), link_target).exists()
     talk_pages = [Page(meta(), title) for title in parse_links(page, "talk")]
     talk_pages = list(PreloadingGenerator(talk_pages))
     for p in talk_pages:
         if p.namespace().id != 3:
             print(f"Warning: {p.title()} is not in user talk NS.")
-    text = f"""==Miraheze Monthly - [[Miraheze Monthly/{date}|{date} issue]]==
-{{{{:Miraheze Monthly/{date}}}}}
+    text = f"""==Miraheze Monthly - [[{link_target}|{date} issue]]==
+{{{{:{link_target}}}}}
 <div style="text-align: right"><span style="display: none">[[User:%s]]</span>Delivered by ~~~~</div>"""
     for page in talk_pages:
         if page.text.strip() != "":
