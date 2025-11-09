@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import TypeVar, Any
 
 import requests
@@ -50,12 +51,11 @@ def sort_dict(d: dict[K, V]) -> None:
     d.update(result)
 
 
-def get_wiki_extension_statistics(reset: bool = False, read_only: bool = False) -> dict[str, WikiExtensionStatistics]:
+def get_wiki_extension_statistics(cache_expiry: timedelta | None = None) -> dict[str, WikiExtensionStatistics]:
     res = scan_wikis(fetch_wiki_extension_statistics,
                      "wiki_extensions",
-                     reset=reset,
                      batch_size=50,
-                     read_only=read_only)
+                     cache_expiry=cache_expiry)
     for k, v in res.items():
         if isinstance(v, dict):
             v.pop('py/object', '')
@@ -64,7 +64,7 @@ def get_wiki_extension_statistics(reset: bool = False, read_only: bool = False) 
 
 
 def analyze_extension_statistics():
-    result = get_wiki_extension_statistics(reset=False)
+    result = get_wiki_extension_statistics()
     extension_counter: dict[str, int] = defaultdict(int)
     default_skin_counter: dict[str, int] = defaultdict(int)
     skip_skin_counter: dict[str, int] = defaultdict(int)
@@ -85,9 +85,7 @@ def get_extension_popularity_statistics() -> dict[str, int]:
 
 
 def main():
-    extension_counter, default_skin_counter, skip_skins = analyze_extension_statistics()
-    save_json_page("User:PetraMagnaBot/extension_statistics.json", extension_counter)
-    save_json_page("User:PetraMagnaBot/default_skins.json", default_skin_counter)
+    get_wiki_extension_statistics(timedelta(days=1))
 
 
 if __name__ == "__main__":

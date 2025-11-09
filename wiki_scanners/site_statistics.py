@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import timedelta
 
 import requests
 
@@ -35,19 +36,18 @@ def fetch_wiki_site_statistics(wikis: list[MirahezeWiki]) -> dict[str, WikiSiteS
             active_users=r['activeusers'],
         )
     except Exception as e:
-        print(e)
+        print(wiki.url, e)
         result = None
     return {
         wiki.db_name: result
     }
 
 
-def get_wiki_site_statistics(reset: bool = False, read_only: bool = False) -> dict[str, WikiSiteStatistics | None]:
+def get_wiki_site_statistics(cache_expiry: timedelta = None) -> dict[str, WikiSiteStatistics | None]:
     return scan_wikis(fetch_wiki_site_statistics,
                       "wiki_statistics",
-                      reset=reset,
                       batch_size=1,
-                      read_only=read_only)
+                      cache_expiry=cache_expiry)
 
 
 def main():

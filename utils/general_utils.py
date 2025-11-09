@@ -59,7 +59,7 @@ class MirahezeWiki:
 
 
 @cache
-def fetch_all_mh_wikis_uncached(state: str = "public") -> list[MirahezeWiki]:
+def fetch_all_mh_wikis_uncached(state: str = "public", limit: int = None) -> list[MirahezeWiki]:
     results: list[MirahezeWiki] = []
     offset = 0
     while True:
@@ -91,6 +91,8 @@ def fetch_all_mh_wikis_uncached(state: str = "public") -> list[MirahezeWiki]:
                 creation_date=wiki_stats["creationdate"],
                 state="|".join(states))
             )
+            if limit is not None and len(results) >= limit:
+                return results
         if len(wikis) < 500:
             break
         offset += len(wikis)

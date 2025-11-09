@@ -10,8 +10,6 @@ from utils.general_utils import MirahezeWiki, fetch_all_mh_wikis_uncached
 
 db_name = db_dir / "wiki_scanner.sqlite"
 
-CACHE_EXPIRY_TABLE = "cache_expiry"
-
 DEFAULT_CACHE_EXPIRY = timedelta(days=7)
 
 def get_wiki_scanner_database() -> Connection:
@@ -28,19 +26,25 @@ def create_tables():
     category TEXT,
     language TEXT,
     creation_date TEXT,
-    state TEXT
+    state TEXT,
+    last_update INTEGER NOT NULL DEFAULT(unixepoch())
     )
     """)
     cursor.execute(f"""
-    CREATE TABLE IF NOT EXISTS {CACHE_EXPIRY_TABLE} (
-    table_name VARCHAR(64) PRIMARY KEY NOT NULL,
-    expiration INTEGER NOT NULL
-    )""")
+    CREATE TRIGGER IF NOT EXISTS all_wikis_last_update
+        AFTER UPDATE
+        ON all_wikis
+        FOR EACH ROW
+        WHEN NEW.last_update = OLD.last_update
+    BEGIN
+        UPDATE all_wikis SET last_update=CURRENT_TIMESTAMP WHERE db_name=OLD.db_name;
+    END;
+    """)
     conn.commit()
 
 
-def deserialize_miraheze_wikis(rows: list[tuple[str, str, str, str, str, str, str]]) -> list[MirahezeWiki]:
-    return [MirahezeWiki.from_sql_row(row) for row in rows]
+def deserialize_miraheze_wikis(rows: list[tuple]) -> list[MirahezeWiki]:
+    return [MirahezeWiki.from_sql_row(row[:-1]) for row in rows]
 
 
 def fetch_all_mh_wikis(cache_expiry: timedelta = DEFAULT_CACHE_EXPIRY) -> list[MirahezeWiki]:
@@ -48,26 +52,21 @@ def fetch_all_mh_wikis(cache_expiry: timedelta = DEFAULT_CACHE_EXPIRY) -> list[M
     conn = get_conn(db_name)
     cursor = conn.cursor()
     cursor.execute(f"""
-    SELECT expiration FROM {CACHE_EXPIRY_TABLE}
-    WHERE table_name = ?
-    """, ("all_wikis",))
+    SELECT max(last_update) from all_wikis;
+    """)
     rows = cursor.fetchall()
     fetch_new_list = False
     if len(rows) == 0:
         fetch_new_list = True
     else:
         expiry_date = rows[0][0]
-        if datetime.fromtimestamp(expiry_date) + cache_expiry < datetime.now():
+        if expiry_date is None or datetime.fromtimestamp(expiry_date) + cache_expiry < datetime.now():
             fetch_new_list = True
     if fetch_new_list:
         print("Fetching list of all wikis again due to cache expiry.")
         wikis = fetch_all_mh_wikis_uncached()
         data = [wiki.to_sql_values() for wiki in wikis]
-        cursor.executemany(f"INSERT OR REPLACE INTO all_wikis VALUES (?, ?, ?, ?, ?, ?, ?)", data)
-        cursor.execute(f"""
-        INSERT OR REPLACE INTO {CACHE_EXPIRY_TABLE}
-        VALUES (?, ?)
-        """, ('all_wikis', int(datetime.now().timestamp())))
+        cursor.executemany(f"INSERT OR REPLACE INTO all_wikis VALUES (?, ?, ?, ?, ?, ?, ?, UNIXEPOCH())", data)
         conn.commit()
     cursor.execute(f"""
     SELECT * FROM all_wikis
@@ -98,27 +97,42 @@ def run_wiki_scanner_query(file_name: str, descriptions: list[str] = None) -> li
 
 def scan_wikis(mapper: Callable[[list[MirahezeWiki]], dict[str, T | None]],
                table_name: str,
-               reset: bool = False,
                batch_size: int = 1,
-               read_only: bool = False) -> dict[str, T]:
+               cache_expiry: timedelta | None = None) -> dict[str, T]:
     conn = get_conn(db_name)
     cursor = conn.cursor()
     cursor.execute(f"""
     CREATE TABLE IF NOT EXISTS {table_name} (
     db_name VARCHAR(64) PRIMARY KEY NOT NULL,
     data TEXT NOT NULL,
+    last_update INTEGER NOT NULL DEFAULT(unixepoch()),
     FOREIGN KEY (db_name) REFERENCES all_wikis(db_name) ON DELETE CASCADE ON UPDATE CASCADE
-    )""")
+    )
+    """)
+    cursor.execute(f"""
+    CREATE TRIGGER IF NOT EXISTS {table_name}_last_update
+        AFTER UPDATE
+        ON {table_name}
+        FOR EACH ROW
+        WHEN NEW.last_update = OLD.last_update
+    BEGIN
+        UPDATE {table_name} SET last_update=CURRENT_TIMESTAMP WHERE db_name=OLD.db_name;
+    END
+    """)
     conn.commit()
-    if not read_only:
-        if reset:
-            wikis = fetch_all_mh_wikis()
-        else:
-            cursor.execute(f"""
-            SELECT * FROM all_wikis
-            WHERE db_name NOT IN (SELECT db_name FROM {table_name})
-            """)
-            wikis = deserialize_miraheze_wikis(cursor.fetchall())
+    if cache_expiry:
+        cursor.execute(f"""
+        WITH need_update AS (
+            SELECT db_name FROM all_wikis
+            WHERE db_name NOT IN (SELECT {table_name}.db_name FROM {table_name})
+            UNION
+            SELECT db_name FROM {table_name}
+            WHERE unixepoch() - last_update > {cache_expiry.total_seconds()}
+        )
+        SELECT * FROM all_wikis
+        WHERE db_name in need_update;
+        """)
+        wikis = deserialize_miraheze_wikis(cursor.fetchall())
         # These wikis won't see any stat changes
         wikis = [w for w in wikis if w.state not in {"closed", "deleted"}]
         wiki_chunks = chunk_list(wikis, batch_size)
@@ -127,14 +141,14 @@ def scan_wikis(mapper: Callable[[list[MirahezeWiki]], dict[str, T | None]],
             for wiki_db_name, extension_info in result.items():
                 text = jsonpickle.encode(extension_info)
                 cursor.execute(f"""
-                INSERT OR REPLACE INTO {table_name} VALUES (?, ?)
+                INSERT OR REPLACE INTO {table_name} (db_name, data) VALUES (?, ?)
                 """, (wiki_db_name, text))
             conn.commit()
     cursor.execute(f"""
     SELECT db_name, data FROM {table_name}
     """)
     rows = cursor.fetchall()
-    assert len(rows) >= 500
+    assert len(rows) >= 50
     return dict((row[0], jsonpickle.decode(row[1])) for row in rows)
 
 

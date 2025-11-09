@@ -21,7 +21,7 @@ class StatisticsTotal:
 
 def rank_wikis():
     all_wikis = get_wiki_dict()
-    stats = get_wiki_site_statistics(read_only=True)
+    stats = get_wiki_site_statistics()
     result: dict[str, dict[int, int]] = {
         'articles': DefaultDict(int),
         'pages': DefaultDict(int),

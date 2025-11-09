@@ -59,8 +59,8 @@ def find_entity_by_exact_label(label: str, entity_type: str = 'item') -> str | N
 def get_all_stats() -> dict[str, MirahezeWikiStats]:
     result: dict[str, MirahezeWikiStats] = {}
     wikis = fetch_all_mh_wikis()
-    ext_statistics = get_wiki_extension_statistics(read_only=True)
-    site_statistics = get_wiki_site_statistics(read_only=True)
+    ext_statistics = get_wiki_extension_statistics()
+    site_statistics = get_wiki_site_statistics()
     for wiki in wikis:
         db = wiki.db_name
         result[db] = MirahezeWikiStats(
