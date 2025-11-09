@@ -8,6 +8,7 @@ from utils.general_utils import headers, get_logger
 
 logger = get_logger("ssl")
 
+
 def main():
     r = requests.get("https://raw.githubusercontent.com/miraheze/ssl/refs/heads/main/wikidiscover_output.yaml")
     r.raise_for_status()
@@ -33,7 +34,7 @@ def main():
 def test_custom_domain(url, retry_cloudflare: int = 2) -> None:
     try:
         response = requests.get(url, headers=headers)
-        response= response.text
+        response = response.text
     except Exception as e:
         error_text = str(e)
         if "NameResolutionError" in error_text:
@@ -43,13 +44,21 @@ def test_custom_domain(url, retry_cloudflare: int = 2) -> None:
         return
 
     if re.search(r"<body class=.*mediawiki ", response) is None:
-        if "Cloudflare Access" in response or "grafana" in response.lower():
+        need_retry = ("Cloudflare Access" in response
+                      or "grafana" in response.lower()
+                      or ("something went wrong" in response.lower()
+                          and
+                          'miraheze' in response.lower()))
+        if need_retry:
             if retry_cloudflare > 0:
                 logger.info("got cloudflared/grafanaed. Retrying...")
                 sleep((3 - retry_cloudflare) * 2)
                 test_custom_domain(url, retry_cloudflare=retry_cloudflare - 1)
             else:
                 logger.error(f"got cloudflared twice for {url}")
+            return
+        if "domain misconfigured" in response.lower():
+            logger.error(f"{url}: domain misconfigured")
             return
         if "expired" in response.lower():
             if "namecheap" in response.lower():
