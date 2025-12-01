@@ -57,6 +57,9 @@ def test_custom_domain(url, retry_cloudflare: int = 2) -> None:
             else:
                 logger.error(f"got cloudflared twice for {url}")
             return
+        if "<title>Wiki not found</title>" in response:
+            logger.error(f"{url}: Wiki not found")
+            return
         if "domain misconfigured" in response.lower():
             logger.error(f"{url}: domain misconfigured")
             return
