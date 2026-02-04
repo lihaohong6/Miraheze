@@ -93,6 +93,10 @@ def list_inactive_wikis():
     return generate_wiki_list_table("inactive_wikis", ['ac', 'pc'])
 
 
+def list_closed_wikis():
+    return generate_wiki_list_table("closed_wikis", ['ac', 'pc'])
+
+
 def list_exempt_wikis():
     return generate_wiki_list_table("exempt_wikis", ['au', 'ac', 'pc'])
 
@@ -174,6 +178,7 @@ def update_wiki_list_pages():
 
         'List_of_all_wikis': list_all_wikis,
         'List_of_inactive_wikis': list_inactive_wikis,
+        'List_of_closed_wikis': list_closed_wikis,
         'List_of_exempt_wikis': list_exempt_wikis,
 
         "List_of_extensions_by_popularity": list_extensions_by_popularity,

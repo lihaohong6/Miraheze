@@ -63,25 +63,14 @@ def get_wiki_extension_statistics(cache_expiry: timedelta | None = None) -> dict
     return res
 
 
-def analyze_extension_statistics():
+def analyze_extension_statistics() -> dict[str, int]:
     result = get_wiki_extension_statistics()
     extension_counter: dict[str, int] = defaultdict(int)
-    default_skin_counter: dict[str, int] = defaultdict(int)
-    skip_skin_counter: dict[str, int] = defaultdict(int)
     for db_name, stats in result.items():
         for extension in stats.extensions:
             extension_counter[extension] += 1
-        default_skin_counter[stats.settings['default_skin']] += 1
-        for skin in stats.settings['skip_skins']:
-            skip_skin_counter[skin] += 1
     sort_dict(extension_counter)
-    sort_dict(default_skin_counter)
-    sort_dict(skip_skin_counter)
-    return extension_counter, default_skin_counter, skip_skin_counter
-
-
-def get_extension_popularity_statistics() -> dict[str, int]:
-    return analyze_extension_statistics()[0]
+    return extension_counter
 
 
 def main():

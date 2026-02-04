@@ -5,8 +5,8 @@ from pathlib import Path
 from pywikibot.pagegenerators import GeneratorFactory
 
 from extension.extension_utils import lower_to_upper, beta
-from wiki_scanners.extension_statistics import get_extension_popularity_statistics, WikiExtensionStatistics, \
-    get_wiki_extension_statistics
+from wiki_scanners.extension_statistics import WikiExtensionStatistics, \
+    get_wiki_extension_statistics, analyze_extension_statistics
 
 
 @dataclass
@@ -63,19 +63,19 @@ def get_ready_wikis():
             print(f"Wiki {wiki} is ready")
 
 
-def main():
+def show_untested_extensions_by_popularity():
     s: WikiExtensionStatistics
-    testing_status: dict[str, bool] = dict((t.name, t.tested) for t in get_extension_testing_status())
-    stats = get_extension_popularity_statistics()
+    testing_status: dict[str, bool] = dict((t.name.upper(), t.tested) for t in get_extension_testing_status())
+    stats = analyze_extension_statistics()
     for ext, num in stats.items():
         ext = lower_to_upper(ext)
-        if ext not in testing_status:
+        if ext.upper() not in testing_status:
             print(f"Where is {ext}?")
             continue
-        if not testing_status[ext]:
+        if not testing_status[ext.upper()]:
             print(f"{ext} is not tested")
 
 if __name__ == "__main__":
-    get_ready_wikis()
+    show_untested_extensions_by_popularity()
 else:
     raise RuntimeError()
