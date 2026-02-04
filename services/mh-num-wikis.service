@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 ExecStartPre=git pull
-ExecStart=/usr/bin/uv run wiki_count_tracking.py
+ExecStart=/usr/bin/uv run -m services.services_main
 WorkingDirectory=/home/peter/Documents/jobs/Miraheze
 
 [Install]

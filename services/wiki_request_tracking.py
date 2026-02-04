@@ -123,11 +123,11 @@ def collect_data():
         result[date] = count
     return result
 
-def main():
+def update_wiki_requests():
     create_tables()
     fetch_wiki_requests()
     data = collect_data()
     save_json_page("User:PetraMagnaBot/number_of_requests.json", data)
 
 if __name__ == '__main__':
-    main()
+    update_wiki_requests()

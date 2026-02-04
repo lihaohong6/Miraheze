@@ -9,7 +9,7 @@ from pywikibot import Page
 from utils.general_utils import headers, site, save_json_page
 
 
-def main():
+def update_wiki_counts():
     response = requests.get("https://meta.miraheze.org/w/api.php", params={
         'action': 'parse',
         'text': '<p id="numofwikis">{{NUMBEROFWIKIS}}</p><p id="activewikis">{{NUMBEROFACTIVEWIKIS}}</p>',
@@ -84,4 +84,4 @@ def import_from_wayback_dump():
 
 if __name__ == "__main__":
     # import_from_wayback_dump()
-    main()
+    update_wiki_counts()
