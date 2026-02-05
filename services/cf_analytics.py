@@ -62,7 +62,7 @@ def update_cf_analytics():
         data = row['sum'] | row['uniq']
         for attribute, v in data.items():
             # Only override if data is recent in case it is corrupted somehow
-            json_pages[attribute].set(date_key, v, override=len(rows) - index <= 7)
+            json_pages[attribute].set(date_key, v, override=len(rows) - index <= 3)
 
     for p in json_pages.values():
         p.save()
