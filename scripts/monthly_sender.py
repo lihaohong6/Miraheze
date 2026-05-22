@@ -51,27 +51,36 @@ def print_pings(page: Page) -> None:
     print("{{ping|" + "|".join(p.title(with_ns=False) for p in user_pages) + "}}")
 
 
-def deliver_to_talk_page(page: Page, date: str, summary: str) -> None:
-    link_target = f"Miraheze_Monthly/{date}"
-    assert Page(meta(), link_target).exists()
-    talk_pages = [Page(meta(), title) for title in parse_links(page, "talk")]
+def send_to_talk_pages(talk_pages: list[Page], text: str, summary: str, ping: bool = True) -> None:
     talk_pages = list(PreloadingGenerator(talk_pages))
     for p in talk_pages:
         if p.namespace().id != 3:
             print(f"Warning: {p.title()} is not in user talk NS.")
-    text = f"""==Miraheze Monthly - [[{link_target}|{date} issue]]==
-{{{{:{link_target}}}}}
-<div style="text-align: right"><span style="display: none">[[User:%s]]</span>Delivered by ~~~~</div>"""
     for page in talk_pages:
         if page.text.strip() != "":
             page.text = page.text.rstrip() + "\n\n"
         if text.split("\n")[0] in page.text:
             print(f"Warning: {page.title()} already contains the current MH Monthly issue.")
             continue
-        username = page.title().split("/")[0].split(":")[1]
-        user_message = text.replace("%s", username)
+        if ping:
+            username = page.title().split("/")[0].split(":")[1]
+            user_message = text.replace("%s", f"[[User:{username}]]")
+        else:
+            user_message = text.replace("%s", "")
         page.text += user_message
         page.save(summary=summary)
+
+
+def deliver_to_talk_page(page: Page, date: str, summary: str) -> None:
+    link_target = f"Miraheze_Monthly/{date}"
+    assert Page(meta(), link_target).exists()
+    talk_pages = [Page(meta(), title) for title in parse_links(page, "talk")]
+    text = f"""==Miraheze Monthly - [[{link_target}|{date} issue]]==
+{{{{:{link_target}}}}}
+<div style="text-align: right"><span style="display: none">%s</span>Delivered by ~~~~</div>"""
+    send_to_talk_pages(talk_pages, text, summary, ping=True)
+    talk_pages = [Page(meta(), title) for title in parse_links(page, "without notifications")]
+    send_to_talk_pages(talk_pages, text, summary, ping=False)
 
 
 if __name__ == '__main__':

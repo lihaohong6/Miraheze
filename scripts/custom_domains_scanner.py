@@ -1,5 +1,4 @@
 import re
-from itertools import dropwhile
 from time import sleep
 
 import requests

@@ -164,9 +164,9 @@ def upload_files(files: list[str], original_wiki: Site, new_wiki: Site, comment:
     counter = 0
     for old_page in gen:
         old_page: FilePage
-        if not old_page.exists():
-            logger.warning(f"{old_page} does not exist on the original wiki")
-            continue
+        # if not old_page.exists():
+        #     logger.warning(f"{old_page} does not exist on the original wiki")
+        #     continue
         upload_source = get_upload_source(old_page)
         if upload_source is None:
             continue
@@ -284,6 +284,7 @@ def main():
     miraheze_files = get_miraheze_wiki_files(new_wiki)
     files_needing_upload = all_files.difference(miraheze_files)
     files = list(files_needing_upload)
+    print("\n".join(files))
     upload_files(files, original_wiki, new_wiki, comment=args.summary)
 
 

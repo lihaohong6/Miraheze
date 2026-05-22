@@ -7,7 +7,7 @@ from services.json_page import JsonPage
 from utils.general_utils import headers
 
 
-def get_token() -> str:
+def get_matomo_token() -> str:
     p = Path("tokens/matomo.txt")
     assert p.exists()
     return open(p, "r").read()
@@ -25,7 +25,7 @@ def update_matomo_analytics():
                              "module=API&format=JSON&idSite=1&period=day"
                              f"&date={start},{end}"
                              "&method=API.get&filter_limit=100&format_metrics=1&fetch_archive_state=1&expanded=1&showMetadata=0",
-                             data={"token_auth": get_token(), },
+                             data={"token_auth": get_matomo_token(), },
                              headers=headers)
     data = response.json()
     for index, day in enumerate(data):

@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Callable
 
 import requests
@@ -7,12 +8,14 @@ from pywikibot.pagegenerators import PreloadingGenerator
 from wikitextparser import parse
 
 from communities.wiki_db import get_item_id_from_wiki, get_wiki_dict
+from services.matomo import get_matomo_token
 from utils.general_utils import headers
 from utils.wiki_scanner import run_wiki_scanner_query, fetch_all_mh_wikis
 
 wiki_dict = None
 
 TABLE_CLASSES = "wikitable sortable mw-collapsible mw-collapsed"
+
 
 def get_wiki_name_column(db: str) -> str:
     global wiki_dict
@@ -132,6 +135,48 @@ def list_wikis_by_meta_referrals():
     return str(a)
 
 
+def list_wikis_by_matomo_statistics():
+    day = date.today() - timedelta(days=7)
+    response = requests.post(
+        'https://analytics.wikitide.net/index.php',
+        params={
+            'module': 'API',
+            'format': 'json',
+            'method': 'MultiSites.getAllWithGroups',
+            'idSite': '1',
+            'filter_limit': '100',
+            'filter_offset': '0',
+            'filter_sort_column': 'nb_visits',
+            'format_metrics': '0',
+            'filter_sort_order': 'desc',
+            'showColumns': 'nb_pageviews,nb_visits',
+            'segment': '',
+            'period': 'week',
+            'date': f'{day}',
+        },
+        data={"token_auth": get_matomo_token(), },
+        headers=headers
+    )
+    data = response.json()
+    a = Airium(base_indent="")
+    with a.table(klass="wikitable sortable"):
+        with a.tr():
+            a.th(_t="Name")
+            a.th(_t="Visits")
+            a.th(_t="Page views")
+
+        # Skip Miraheze general
+        for v in data['sites'][1:]:
+            db_name = v['label']
+            visited = v['nb_visits']
+            pageviews = v['nb_pageviews']
+            with a.tr():
+                a.td(_t=get_wiki_name_column(db_name))
+                a.td(_t=str(visited))
+                a.td(_t=str(pageviews))
+    return str(a)
+
+
 def list_all_wikis():
     return generate_wiki_list_table("wiki_statistics")
 
@@ -156,11 +201,13 @@ def generate_extension_list_table(sql_query: str, labels: list[str] = None) -> s
 
 
 def list_extensions_by_popularity():
-    return generate_extension_list_table("popular_extensions", labels=['Name', 'Wikis using', 'Active users of wikis using'])
+    return generate_extension_list_table("popular_extensions",
+                                         labels=['Name', 'Wikis using', 'Active users of wikis using'])
 
 
 def list_skins_by_popularity():
-    return generate_extension_list_table("popular_skins", labels=['Name', 'Default wikis', 'Active users of default wikis'])
+    return generate_extension_list_table("popular_skins",
+                                         labels=['Name', 'Default wikis', 'Active users of default wikis'])
 
 
 def list_wikis_by_default_skin():
@@ -173,6 +220,7 @@ def update_wiki_list_pages():
         'List_of_wikis_by_article_count': list_wikis_by_article_count,
         'List_of_wikis_by_creation_date': list_wikis_by_creation_date,
         'List_of_wikis_by_Meta_referrals': list_wikis_by_meta_referrals,
+        'List_of_wikis_by_Matomo_statistics': list_wikis_by_matomo_statistics,
 
         'List_of_wikis_by_default_skin': list_wikis_by_default_skin,
 

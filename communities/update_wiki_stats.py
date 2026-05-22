@@ -168,7 +168,7 @@ def update_item_with_wiki_stats(wbi: WikibaseIntegrator,
 
     try:
         throttle(3)
-        item.write(is_bot=True)
+        item.write(is_bot=True, login=wbi.login)
     except Exception as e:
         print(e)
         print(f"Failed to update for {wiki.db_name} ({wiki.site_name})")
