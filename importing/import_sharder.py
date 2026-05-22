@@ -2,6 +2,7 @@ import re
 import shutil
 from argparse import ArgumentParser
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from json import JSONDecodeError
 from pathlib import Path
@@ -14,6 +15,7 @@ from utils.general_utils import cache_dir, get_logger, SessionInfo, get_csrf_tok
 LENGTH_HARD_LIMIT = 200 * 1024 * 1000
 # Files should target this length to leave extra room for miscellaneous stuff.
 LENGTH_TARGET_LIMIT = 200 * 1000 * 1000
+REVISION_CUTOFF = datetime(2030, 1, 1, tzinfo=timezone.utc)
 
 xml_cache_dir = cache_dir / "xml"
 xml_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -31,6 +33,7 @@ def str_size(string: str | list[str]) -> int:
 @dataclass
 class Revision:
     lines: list[str]
+    timestamp: datetime
 
     def __str__(self):
         return "".join(self.lines)
@@ -71,6 +74,7 @@ class ParsedFile:
 def parse_page(lines: list[str]) -> ParsedPage:
     revisions = []
     current_revision = []
+    current_timestamp = None
     revision_start = 0
     while revision_start < len(lines):
         if re.search("<.*revision.*>", lines[revision_start]):
@@ -81,10 +85,26 @@ def parse_page(lines: list[str]) -> ParsedPage:
         exit(1)
     for line in lines[revision_start:-1]:
         current_revision.append(line)
+        timestamp_match = re.search(r"<(?:\w+:)?timestamp>(.*?)</(?:\w+:)?timestamp>", line)
+        if timestamp_match is not None:
+            current_timestamp = datetime.fromisoformat(timestamp_match.group(1).replace("Z", "+00:00"))
         if re.search(r"</(ns\d+:)?revision.*>", line) is not None:
-            revisions.append(Revision(current_revision))
+            if current_timestamp is None:
+                logger.warning("Cannot find timestamp for a revision.")
+            revisions.append(Revision(current_revision, current_timestamp))
             current_revision = []
+            current_timestamp = None
     return ParsedPage("".join(lines[:revision_start]), revisions, lines[-1])
+
+
+def filter_revisions_by_timestamp(pages: list[ParsedPage]) -> list[ParsedPage]:
+    filtered_pages = []
+    for page in pages:
+        revisions = [revision for revision in page.revisions if revision.timestamp < REVISION_CUTOFF]
+        if len(revisions) == 0:
+            continue
+        filtered_pages.append(ParsedPage(page.start_tag, revisions, page.end_tag))
+    return filtered_pages
 
 
 def parse_lines(lines: list[str]) -> ParsedFile:
@@ -161,7 +181,8 @@ def shard_file(original_file: Path) -> list[Path]:
     logger.info(f"File {original_file.name} parsed.")
 
     files = []
-    pages = parsed_file.pages
+    pages = filter_revisions_by_timestamp(parsed_file.pages)
+    logger.info(f"Filtered dump to {len(pages)} pages before {REVISION_CUTOFF.isoformat()}.")
 
     remaining_size = LENGTH_TARGET_LIMIT - str_size(parsed_file.template_start) - str_size(parsed_file.template_end)
     page_groups = partition_by_size(pages, remaining_size)
